@@ -114,7 +114,23 @@ Apex/
 
 - 使用中文作为 UI 语言
 - 注释可中英混合，变量名/函数名使用英文
-- Git commit message 用中文
+- Git commit message 用中文，遵循下方 Commitlint 规范
+
+### Commitlint | 提交规范
+
+commit message 格式：`<type>: <描述>`，描述使用中文。type 取值如下：
+
+- `build`: 构建流程、外部依赖的变更（如打包工具、依赖包版本修改）
+- `chore`: 日常琐事、不影响代码逻辑的变更（如配置文件修改、删除冗余文件、格式化脚本）
+- `ci`: 持续集成（CI）配置的变更（如 GitHub Actions、Jenkins 脚本修改）
+- `docs`: 文档的变更（如 README 更新、注释修改、API 文档完善）
+- `feat`: 新增功能（新特性、新功能模块）
+- `fix`: 修复 bug（代码错误、逻辑问题等）
+- `perf`: 性能优化（不改变功能逻辑，仅提升代码运行效率）
+- `refactor`: 重构（既不是新增功能，也不是修复 bug，仅优化代码结构）
+- `revert`: 回滚（撤销上一次提交的代码变更）
+- `style`: 代码格式化（不影响代码逻辑的修改，如格式化、缩进、空格、命名规范修正）
+- `test`: 测试用例的变更（如新增测试用例、修改测试用例、测试环境配置修改）
 
 ### JavaScript / TypeScript
 
