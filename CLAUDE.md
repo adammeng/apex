@@ -114,7 +114,7 @@ Apex/
 
 - 使用中文作为 UI 语言
 - 注释可中英混合，变量名/函数名使用英文
-- Git commit message 用英文
+- Git commit message 用中文
 
 ### JavaScript / TypeScript
 
