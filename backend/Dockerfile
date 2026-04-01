@@ -5,6 +5,7 @@ WORKDIR /app
 # 系统依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # 依赖安装
@@ -13,6 +14,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # 应用代码
 COPY app/ ./app/
+COPY scripts/ ./scripts/
+COPY alembic/ ./alembic/
+COPY alembic.ini ./alembic.ini
 
 # 数据目录（运行时挂载）
 RUN mkdir -p /data/raw /data/cache /data/exports
