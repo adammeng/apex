@@ -1,6 +1,6 @@
 ---
 name: acommit
-description: 分析工作区改动，自动生成中文 commit message 并在用户确认后提交。
+description: 分析工作区改动，自动生成中文 commit message 并在用户确认后提交并推送。
 ---
 
 ## 工作流程
@@ -14,13 +14,13 @@ description: 分析工作区改动，自动生成中文 commit message 并在用
    - 列出将被提交的文件清单。
    - 展示草拟的 commit message。
    - 询问用户：确认 / 修改 / 取消。
-7. 仅在用户明确确认后才执行 `git commit`。
-8. 提交后执行 `git status` 验证是否成功。
+7. 仅在用户明确确认后才执行 `git commit`，提交成功后立即执行 `git push`。
+8. 提交并推送后执行 `git status` 验证结果。
 
 ## 规则
 
-- 未经用户确认，绝不提交。
-- 绝不推送到远程——仅创建本地 commit。
+- 未经用户确认，绝不提交或推送。
+- 用户确认后，commit 与 push 一并完成，无需再次询问。
 - 绝不使用 `--amend`、`--no-verify` 或任何强制/破坏性选项。
 - 绝不修改 git config。
 - 若无任何改动，告知用户并停止。
