@@ -57,7 +57,7 @@ backend/
 │   ├── services/
 │   │   └── feishu_auth.py   # 飞书 OAuth：code → user_info
 │   ├── models/
-│   │   └── sync.py          # SQLAlchemy ORM：sync_jobs / data_versions
+│   │   └── sync.py          # SQLAlchemy ORM：sync_jobs
 │   ├── schemas/
 │   │   └── response.py      # 统一响应体 ApiResponse[T]
 │   ├── tasks/
@@ -72,38 +72,50 @@ backend/
 └── requirements.txt
 ```
 
-## 本地启动
+## 本地启动与停止
 
 ### 前置条件
 
 - Python 3.9（`backend/.venv/` 已就绪）
-- 本地 MySQL（3306）和 Redis（6379）均通过 Homebrew 安装并运行：
-  ```bash
-  brew services start mysql
-  brew services start redis
-  ```
+- 本地 MySQL（3306）和 Redis（6379）通过 Homebrew 安装
 - `backend/parquet/` 目录下已有三个 parquet 数据文件
 
-### 手动启动（逐步）
+### 一键启动 / 停止
+
+```bash
+cd backend
+
+# 启动（venv → 依赖 → alembic 建表 → uvicorn，parquet 检查由 lifespan 自动处理）
+bash dev-bootstrap.sh
+
+# 停止（uvicorn + MySQL + Redis 全部停止）
+bash dev-stop.sh
+```
+
+### 手动启动
 
 ```bash
 # 1. 进入目录
 cd backend
 
-# 2. 创建并激活虚拟环境
+# 2. 创建并激活虚拟环境（首次）
 python3 -m venv .venv
-source .venv/bin/activate       # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 
-# 3. 安装依赖
+# 3. 安装依赖（首次或依赖变更时）
 pip install -r requirements.txt
 
-# 4. 准备配置文件（首次使用）
+# 4. 准备配置文件（首次）
 cp .env.example .env            # 按实际填写 MySQL、Redis、飞书等配置
 
-# 5. 数据库迁移（建表）
+# 5. 启动基础服务
+brew services start mysql
+brew services start redis
+
+# 6. 数据库迁移（首次或有新迁移时）
 alembic upgrade head
 
-# 6. 启动开发服务器
+# 7. 启动开发服务器
 uvicorn app.main:app --reload --reload-dir app
 ```
 
@@ -111,7 +123,18 @@ uvicorn app.main:app --reload --reload-dir app
 - Swagger：`http://localhost:8000/api/docs`
 - ReDoc：`http://localhost:8000/api/redoc`
 
-> **注意**：重启时步骤 3–5 可跳过，直接运行步骤 6。
+> **注意**：日常重启只需步骤 5 + 7，其余步骤首次或有变更时才需要执行。
+
+### 手动停止
+
+```bash
+# 停止 uvicorn
+kill $(lsof -ti :8000)
+
+# 停止 MySQL / Redis（Homebrew 管理）
+brew services stop mysql
+brew services stop redis
+```
 
 ## 环境变量
 
