@@ -1,55 +1,110 @@
 """
 鉴权路由 — 飞书 OAuth2 + JWT
-V1: /api/auth/feishu/login, /api/auth/feishu/callback, /api/auth/me
+主场景：飞书内嵌 H5 应用，JS SDK 静默获取 code，POST 给后端换 JWT。
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import JWTError
+from pydantic import BaseModel
 
 from ..core.config import get_settings
+from ..core.jwt import create_access_token, decode_access_token
 from ..schemas.response import ApiResponse
+from ..services.feishu_auth import exchange_code_for_user
 
 router = APIRouter(prefix="/auth", tags=["鉴权"])
 
+_bearer = HTTPBearer(auto_error=False)
 
-@router.get("/feishu/login", summary="飞书登录入口")
-async def feishu_login():
-    """重定向到飞书 OAuth2 授权页面。"""
-    settings = get_settings()
-    if not settings.feishu_app_id:
-        raise HTTPException(status_code=503, detail="飞书应用未配置")
-    auth_url = (
-        "https://open.feishu.cn/open-apis/authen/v1/index"
-        f"?app_id={settings.feishu_app_id}"
-        f"&redirect_uri={settings.feishu_redirect_uri}"
-        "&response_type=code"
+
+# ---------------------------------------------------------------------------
+# 依赖：从 Bearer Token 中提取当前用户
+# ---------------------------------------------------------------------------
+
+
+async def get_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
+) -> dict:
+    """FastAPI 依赖，验证 JWT 并返回用户 payload。"""
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="未提供认证 Token")
+    try:
+        payload = decode_access_token(credentials.credentials)
+        return payload
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token 无效或已过期")
+
+
+# ---------------------------------------------------------------------------
+# Schema
+# ---------------------------------------------------------------------------
+
+
+class CodeExchangeRequest(BaseModel):
+    code: str
+
+
+# ---------------------------------------------------------------------------
+# 路由
+# ---------------------------------------------------------------------------
+
+
+@router.post("/feishu/code2token", summary="飞书 code 换 JWT（静默登录）")
+async def feishu_code2token(body: CodeExchangeRequest):
+    """
+    前端在飞书客户端内通过 JS SDK 静默获取授权码后，POST code 到此接口。
+    后端换取用户信息，签发 JWT 返回。全程用户无感知。
+    """
+    try:
+        user_info = await exchange_code_for_user(body.code)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"飞书授权失败: {e}")
+
+    token = create_access_token(
+        {
+            "open_id": user_info["open_id"],
+            "name": user_info["name"],
+            "avatar_url": user_info.get("avatar_url", ""),
+            "email": user_info.get("email", ""),
+        }
     )
-    return RedirectResponse(url=auth_url)
-
-
-@router.get("/feishu/callback", summary="飞书 OAuth2 回调")
-async def feishu_callback(code: str, state: str = ""):
-    """接收飞书回调，换取 access_token，生成 JWT。"""
-    # TODO: 调用 feishu_auth service 换 token，写入 users 表，签发 JWT
-    return ApiResponse.ok(
-        data={"code": code, "state": state, "msg": "TODO: 完整飞书登录流程待实现"}
-    )
+    return ApiResponse.ok(data={"access_token": token, "token_type": "bearer"})
 
 
 @router.get("/me", summary="获取当前登录用户信息")
-async def get_me():
+async def get_me(user: dict = Depends(get_current_user)):
     """返回当前 JWT 对应的用户信息。"""
-    # TODO: 解析 JWT，查询用户表
-    return ApiResponse.ok(data={"open_id": "mock_user", "name": "开发测试用户"})
+    return ApiResponse.ok(
+        data={
+            "open_id": user.get("open_id"),
+            "name": user.get("name"),
+            "avatar_url": user.get("avatar_url", ""),
+            "email": user.get("email", ""),
+        }
+    )
 
 
-@router.post("/mock-login", summary="Mock 登录（开发调试用）")
+@router.post("/mock-login", summary="Mock 登录（仅 debug 模式）")
 async def mock_login():
-    """跳过飞书鉴权，直接返回测试 JWT（仅 debug 模式可用）。"""
+    """
+    本地开发时模拟静默登录，返回真实结构的 JWT。
+    与生产流程完全一致，只是跳过飞书 API 调用。
+    仅 DEBUG=true 时可用。
+    """
     settings = get_settings()
     if not settings.debug:
         raise HTTPException(status_code=403, detail="仅开发模式可用")
-    # TODO: 生成 JWT
-    return ApiResponse.ok(
-        data={"access_token": "mock_jwt_token", "token_type": "bearer"}
+
+    token = create_access_token(
+        {
+            "open_id": "mock_open_id_dev",
+            "name": "开发测试用户",
+            "avatar_url": "",
+            "email": "dev@example.com",
+        }
     )
+    return ApiResponse.ok(data={"access_token": token, "token_type": "bearer"})

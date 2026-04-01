@@ -2,6 +2,9 @@
 DuckDB 连接管理
 - 单例模式，全局共享一个 in-memory 连接，直接读 parquet 外部表
 - 支持原子切换数据版本（热更新）
+- parquet 路径解析优先级：
+    1. data/parquet_current 软链（OSS 同步后自动切换）
+    2. PARQUET_DIR 环境变量（本地开发直接指定）
 """
 
 import threading
@@ -19,14 +22,32 @@ _conn: Optional[duckdb.DuckDBPyConnection] = None
 _lock = threading.Lock()
 
 
+def _resolve_parquet_path() -> Path:
+    """
+    解析实际 parquet 目录：
+    优先使用 data/parquet_current 软链（同步后切换），
+    回退到 PARQUET_DIR 配置。
+    """
+    settings = get_settings()
+    symlink = settings.data_path / "parquet_current"
+    if symlink.exists() and symlink.is_symlink():
+        resolved = symlink.resolve()
+        logger.info(f"使用 parquet_current 软链: {resolved}")
+        return resolved
+    return settings.parquet_path
+
+
 def _create_connection() -> duckdb.DuckDBPyConnection:
     """创建并初始化 DuckDB 连接，注册 parquet 视图。"""
     settings = get_settings()
+    parquet_dir = _resolve_parquet_path()
     conn = duckdb.connect(database=":memory:", read_only=False)
 
-    ci_path = str(settings.ci_tracking_path)
-    detail_path = str(settings.clinical_detail_path)
-    pipeline_path = str(settings.drug_pipeline_path)
+    ci_path = str(parquet_dir / settings.parquet_ci_tracking)
+    detail_path = str(parquet_dir / settings.parquet_clinical_detail)
+    pipeline_path = str(parquet_dir / settings.parquet_drug_pipeline)
+
+    logger.info(f"DuckDB 使用 parquet 目录: {parquet_dir}")
 
     # 注册原始表视图
     conn.execute(

@@ -1,0 +1,61 @@
+"""
+飞书 OAuth2 服务层
+调用飞书开放平台接口，完成 code → user_info 的换取流程。
+"""
+
+import httpx
+
+from ..core.config import get_settings
+
+
+FEISHU_TOKEN_URL = "https://open.feishu.cn/open-apis/authen/v1/oidc/access_token"
+FEISHU_USER_URL = "https://open.feishu.cn/open-apis/authen/v1/user_info"
+FEISHU_APP_TOKEN_URL = (
+    "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal"
+)
+
+
+async def get_app_access_token() -> str:
+    """获取飞书应用级 access token（tenant_access_token）。"""
+    settings = get_settings()
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.post(
+            FEISHU_APP_TOKEN_URL,
+            json={
+                "app_id": settings.feishu_app_id,
+                "app_secret": settings.feishu_app_secret,
+            },
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        if body.get("code") != 0:
+            raise RuntimeError(f"获取飞书 app_access_token 失败: {body.get('msg')}")
+        return body["tenant_access_token"]
+
+
+async def exchange_code_for_user(code: str) -> dict:
+    """
+    用授权码换取用户信息。
+    返回包含 open_id、name（display_name）、avatar_url 的字典。
+    """
+    app_token = await get_app_access_token()
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        # 换取用户 access_token
+        resp = await client.post(
+            FEISHU_TOKEN_URL,
+            headers={"Authorization": f"Bearer {app_token}"},
+            json={"grant_type": "authorization_code", "code": code},
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        if body.get("code") != 0:
+            raise RuntimeError(f"飞书 code 换 token 失败: {body.get('msg')}")
+
+        data = body["data"]
+        return {
+            "open_id": data["open_id"],
+            "name": data.get("name") or data.get("display_name") or "未知用户",
+            "avatar_url": data.get("avatar_url") or data.get("avatar_thumb") or "",
+            "email": data.get("email") or "",
+        }

@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from .core.config import get_settings
 from .core.logging import get_logger, setup_logging
 from .routers import auth, export, matrix, meta, pipeline, system
+from .tasks.scheduler import start_scheduler, stop_scheduler
 
 setup_logging()
 logger = get_logger(__name__)
@@ -33,7 +34,19 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"DuckDB 预热失败（parquet 文件可能不存在）: {e}")
 
+    # 启动定时同步任务
+    try:
+        start_scheduler()
+    except Exception as e:
+        logger.warning(f"定时任务启动失败: {e}")
+
     yield
+
+    # 关闭定时任务
+    try:
+        stop_scheduler()
+    except Exception:
+        pass
 
     logger.info("应用关闭")
 

@@ -1,10 +1,17 @@
 import { create } from 'zustand'
 
+export interface UserInfo {
+  open_id: string
+  name: string
+  avatar_url: string
+  email: string
+}
+
 interface AuthState {
   token: string | null
-  user: { open_id: string; name: string } | null
+  user: UserInfo | null
   setToken: (token: string) => void
-  setUser: (user: AuthState['user']) => void
+  setUser: (user: UserInfo | null) => void
   logout: () => void
 }
 

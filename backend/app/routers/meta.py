@@ -40,24 +40,36 @@ async def disease_tree():
 @router.get("/targets", summary="靶点列表")
 async def targets(disease: str = Query(None, description="按适应症过滤")):
     """
-    返回靶点列表，按首字母分组。
-    可选 disease 参数过滤特定适应症下的靶点。
+    返回靶点列表。可选 disease 参数过滤特定适应症下的靶点。
+    使用参数化查询，避免 SQL 注入。
     """
     conn = get_conn()
-    where_clause = "WHERE targets IS NOT NULL AND TRIM(targets) != ''"
-    if disease:
-        where_clause += (
-            f" AND harbour_indication_name = '{disease.replace(chr(39), '')}'"
-        )
 
-    rows = conn.execute(f"""
-        SELECT DISTINCT
-            TRIM(t.target) AS target
-        FROM latest_records,
-        UNNEST(STRING_SPLIT(targets, ',')) AS t(target)
-        {where_clause.replace("WHERE targets", "WHERE t.target")}
-        ORDER BY target
-    """).fetchall()
+    if disease:
+        # 参数化查询：DuckDB Python API 使用位置参数 $1/$2...
+        rows = conn.execute(
+            """
+            SELECT DISTINCT TRIM(t.target) AS target
+            FROM latest_records,
+            UNNEST(STRING_SPLIT(targets, ',')) AS t(target)
+            WHERE t.target IS NOT NULL
+              AND TRIM(t.target) != ''
+              AND harbour_indication_name = $1
+            ORDER BY target
+        """,
+            [disease],
+        ).fetchall()
+    else:
+        rows = conn.execute("""
+            SELECT DISTINCT TRIM(t.target) AS target
+            FROM latest_records,
+            UNNEST(STRING_SPLIT(targets, ',')) AS t(target)
+            WHERE t.target IS NOT NULL
+              AND TRIM(t.target) != ''
+              AND targets IS NOT NULL
+              AND TRIM(targets) != ''
+            ORDER BY target
+        """).fetchall()
 
     targets_list = [r[0] for r in rows if r[0]]
     return ApiResponse.ok(data={"targets": targets_list, "total": len(targets_list)})

@@ -331,9 +331,9 @@ V1 统一把 `ci_tracking_info` 视为主事实表，原因：
 
 ### 8.1 鉴权与系统接口
 
-- `GET /api/auth/feishu/login`
-- `GET /api/auth/feishu/callback`
-- `GET /api/auth/me`
+- `POST /api/auth/feishu/code2token`（飞书 JSSDK 静默获取 code 后调用，换取 JWT）
+- `GET /api/auth/me`（验证 JWT，返回当前用户信息）
+- `POST /api/auth/mock-login`（仅 DEBUG=true，本地开发用）
 - `GET /api/system/sync-status`
 
 ### 8.2 元数据接口

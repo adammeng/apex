@@ -1,12 +1,15 @@
-import { Layout, Menu, Typography } from 'antd'
+import { Layout, Menu, Typography, Avatar, Dropdown, Button } from 'antd'
 import {
   DashboardOutlined,
   TableOutlined,
   ApartmentOutlined,
   BarChartOutlined,
+  UserOutlined,
+  LogoutOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
+import { useAuthStore } from '../stores/auth'
 
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
@@ -25,6 +28,21 @@ const menuItems = [
 export default function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate()
   const location = useLocation()
+  const { user, logout } = useAuthStore()
+
+  function handleLogout() {
+    logout()
+    navigate('/login', { replace: true })
+  }
+
+  const userMenuItems = [
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: '退出登录',
+      onClick: handleLogout,
+    },
+  ]
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -55,7 +73,32 @@ export default function AppLayout({ children }: AppLayoutProps) {
           }}
         >
           <div style={{ flex: 1 }} />
-          <div style={{ color: '#666', fontSize: 13 }}>港药内部分析平台</div>
+          {user ? (
+            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                  borderRadius: 6,
+                }}
+              >
+                <Avatar
+                  size={28}
+                  src={user.avatar_url || undefined}
+                  icon={!user.avatar_url && <UserOutlined />}
+                  style={{ background: '#1677ff' }}
+                />
+                <span style={{ color: '#333', fontSize: 13 }}>{user.name}</span>
+              </div>
+            </Dropdown>
+          ) : (
+            <Button type="link" size="small" onClick={handleLogout}>
+              退出
+            </Button>
+          )}
         </Header>
         <Content style={{ margin: 24, minHeight: 280 }}>{children}</Content>
       </Layout>

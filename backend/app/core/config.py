@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     feishu_app_secret: str = ""
     feishu_redirect_uri: str = "http://localhost:8000/api/auth/feishu/callback"
 
+    # 前端地址（OAuth 回调后重定向目标）
+    frontend_url: str = "http://localhost:5173"
+
     # Redis
     redis_url: str = "redis://localhost:6379/0"
     cache_ttl_seconds: int = 3600

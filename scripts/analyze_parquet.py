@@ -1,13 +1,41 @@
 """
 Apex 数据分析脚本
 分析三个 parquet 文件的多维度数据内容
+
+用法:
+    python scripts/analyze_parquet.py
+    PARQUET_DIR=/path/to/parquet python scripts/analyze_parquet.py
 """
 
+import os
 import pandas as pd
 import numpy as np
 from pathlib import Path
 
-BASE_DIR = Path("/Users/adam/repo/Apex/parquet")
+
+# 优先从环境变量读取，其次从 .env 推断，最后回退到仓库根目录下的 parquet/
+def _resolve_parquet_dir() -> Path:
+    # 1. 环境变量显式指定
+    env_val = os.environ.get("PARQUET_DIR")
+    if env_val:
+        return Path(env_val)
+
+    # 2. 尝试读取 backend/.env
+    repo_root = Path(__file__).resolve().parent.parent
+    env_file = repo_root / "backend" / ".env"
+    if env_file.exists():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line.startswith("PARQUET_DIR="):
+                val = line.split("=", 1)[1].strip().strip('"').strip("'")
+                if val:
+                    return Path(val)
+
+    # 3. 默认：仓库根目录下的 parquet/
+    return repo_root / "parquet"
+
+
+BASE_DIR = _resolve_parquet_dir()
 
 FILES = {
     "drug_pipeline_info": BASE_DIR / "pharmcube2harbour_drug_pipeline_info_0.parquet",
