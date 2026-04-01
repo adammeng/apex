@@ -5,14 +5,16 @@
 #   1. 创建/激活 Python venv
 #   2. 安装依赖
 #   3. 检查 .env 是否存在
-#   4. 启动 MySQL / Redis（若本地没有，提示用 docker-compose 拉起基础服务）
-#   5. 运行 init_data.py（alembic 建表 + parquet 就绪检查）
+#   4. 检查 MySQL / Redis 端口可达性
+#   5. alembic upgrade head（建表/迁移）
 #   6. 启动 uvicorn
+#      → uvicorn 启动时 lifespan 会自动检查 parquet：
+#        有文件则跳过，无文件则从 OSS 拉取
 # ==============================================================================
 
 set -euo pipefail
 
-BACKEND_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+BACKEND_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$BACKEND_DIR"
 
 # ---------- 颜色输出 ----------
@@ -57,7 +59,6 @@ check_port() {
   info "$name 连接正常（$host:$port）"
 }
 
-# 从 .env 读取主机和端口，有默认值
 MYSQL_HOST=$(grep -E '^MYSQL_HOST=' .env | cut -d= -f2 | tr -d '[:space:]' || echo "localhost")
 MYSQL_PORT=$(grep -E '^MYSQL_PORT=' .env | cut -d= -f2 | tr -d '[:space:]' || echo "3306")
 REDIS_HOST=$(grep -E '^REDIS_URL=' .env | sed 's|.*://\([^:/]*\).*|\1|' || echo "localhost")
@@ -66,12 +67,13 @@ REDIS_PORT=$(grep -E '^REDIS_URL=' .env | sed 's|.*:\([0-9]*\)/.*|\1|' || echo "
 check_port "${MYSQL_HOST:-localhost}" "${MYSQL_PORT:-3306}" "MySQL"
 check_port "${REDIS_HOST:-localhost}" "${REDIS_PORT:-6379}" "Redis"
 
-# ---------- 5. 初始化（alembic + parquet）----------
-info "运行数据初始化..."
-python -m scripts.init_data
+# ---------- 5. 数据库迁移 ----------
+info "运行 alembic upgrade head..."
+alembic upgrade head
 
 # ---------- 6. 启动服务 ----------
-info "启动 Apex 后端..."
+# lifespan 启动时自动检查 parquet/：有文件跳过，无文件从 OSS 拉取
+info "启动 Apex 后端（parquet 检查由 lifespan 自动处理）..."
 exec uvicorn app.main:app \
   --host 0.0.0.0 \
   --port 8000 \

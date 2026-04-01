@@ -4,10 +4,42 @@
 
 ## 当前状态
 
-- 前端已完成基础框架、路由和主界面骨架
-- 后端已完成 FastAPI 服务骨架、配置体系和部分元数据接口
-- 数据源以 `parquet/` 目录内文件为主，查询层基于 DuckDB / Pandas / PyArrow
-- 飞书登录、导出、矩阵查询、泳道查询等能力已预留接口，仍在持续完善
+### 后端（`backend/`）
+
+| 模块 | 状态 |
+| --- | --- |
+| FastAPI 服务框架、配置体系、日志 | 已完成 |
+| DuckDB 单例连接 + 6 张 parquet 视图 | 已完成 |
+| Redis 异步缓存工具 | 已完成 |
+| MySQL 建库建表（Alembic 001_sync_tables） | 已完成 |
+| 健康检查 `/api/system/health` | 已完成 |
+| 元数据接口（疾病树 / 靶点 / 阶段枚举） | 已完成 |
+| APScheduler 每日定时同步骨架 | 已完成 |
+| 飞书 OAuth 完整登录流程 | 待实现 |
+| 竞争矩阵查询（`/matrix/query`, `/matrix/tooltip`） | 待实现（接口占位） |
+| 研发泳道查询（`/pipeline/query`） | 待实现（接口占位） |
+| 导出功能（`/export/jobs`） | 待实现（接口占位） |
+
+### 前端（`frontend/`）
+
+| 模块 | 状态 |
+| --- | --- |
+| 基础布局（左侧导航 + 顶部栏） | 已完成 |
+| 四页路由（总览 / 矩阵 / 泳道 / 竞争格局） | 已完成 |
+| 统一请求实例（Axios + JWT + 401 跳转） | 已完成 |
+| Zustand 鉴权 & 筛选状态 | 已完成 |
+| 数据总览页面（真实数据渲染） | 待实现（静态占位） |
+| 竞争矩阵页面 | 待实现（静态占位） |
+| 研发泳道页面 | 待实现（静态占位） |
+| 竞争格局页面 | 待实现（静态占位） |
+
+### 本地开发环境
+
+| 服务 | 版本 | 启动方式 |
+| --- | --- | --- |
+| MySQL | 9.6（Homebrew） | `brew services start mysql` |
+| Redis | 8.6（Homebrew） | `brew services start redis` |
+| FastAPI | 后台运行，`--reload` | `uvicorn app.main:app --reload`（在 `backend/` 下） |
 
 ## 技术栈
 

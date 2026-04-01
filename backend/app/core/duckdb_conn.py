@@ -1,14 +1,11 @@
 """
 DuckDB 连接管理
 - 单例模式，全局共享一个 in-memory 连接，直接读 parquet 外部表
-- 支持原子切换数据版本（热更新）
-- parquet 路径解析优先级：
-    1. data/parquet_current 软链（OSS 同步后自动切换）
-    2. PARQUET_DIR 环境变量（本地开发直接指定）
+- parquet 路径固定为 backend/parquet/（由 settings.parquet_path 提供）
+- 支持热更新（OSS 同步覆盖文件后调用 reload_conn）
 """
 
 import threading
-from pathlib import Path
 from typing import Optional
 
 import duckdb
@@ -22,26 +19,10 @@ _conn: Optional[duckdb.DuckDBPyConnection] = None
 _lock = threading.Lock()
 
 
-def _resolve_parquet_path() -> Path:
-    """
-    解析实际 parquet 目录：
-    优先使用 data/parquet_current 软链（同步后切换），
-    回退到 PARQUET_DIR 配置。
-    """
-    settings = get_settings()
-    symlink = settings.data_path / "parquet_current"
-    if symlink.exists() and symlink.is_symlink():
-        resolved = symlink.resolve()
-        logger.info(f"使用 parquet_current 软链: {resolved}")
-        return resolved
-    return settings.parquet_path
-
-
 def _create_connection() -> duckdb.DuckDBPyConnection:
     """创建并初始化 DuckDB 连接，注册 parquet 视图。"""
     settings = get_settings()
-    parquet_dir = _resolve_parquet_path()
-    conn = duckdb.connect(database=":memory:", read_only=False)
+    parquet_dir = settings.parquet_path
 
     ci_path = str(parquet_dir / settings.parquet_ci_tracking)
     detail_path = str(parquet_dir / settings.parquet_clinical_detail)
@@ -49,7 +30,9 @@ def _create_connection() -> duckdb.DuckDBPyConnection:
 
     logger.info(f"DuckDB 使用 parquet 目录: {parquet_dir}")
 
-    # 注册原始表视图
+    conn = duckdb.connect(database=":memory:", read_only=False)
+
+    # 原始表视图
     conn.execute(
         f"CREATE OR REPLACE VIEW ci_tracking_raw AS SELECT * FROM read_parquet('{ci_path}')"
     )
@@ -69,9 +52,7 @@ def _create_connection() -> duckdb.DuckDBPyConnection:
             AND highest_trial_id IS NOT NULL
             AND nct_id = highest_trial_id
         )
-        OR (
-            nct_id IS NULL
-        )
+        OR nct_id IS NULL
     """)
 
     # 视图二：stage_mapped_records — 阶段标准化 + score
@@ -80,42 +61,39 @@ def _create_connection() -> duckdb.DuckDBPyConnection:
         SELECT
             *,
             CASE indication_top_cn_latest_stage
-                WHEN '临床前'   THEN 0.1
-                WHEN '申报临床' THEN 0.5
-                WHEN 'I期临床'  THEN 1.0
-                WHEN 'I/II期临床' THEN 1.5
-                WHEN 'II期临床'  THEN 2.0
-                WHEN 'II/III期临床' THEN 2.5
-                WHEN 'III期临床'  THEN 3.0
-                WHEN '申请上市'  THEN 3.5
-                WHEN '批准上市'  THEN 4.0
+                WHEN '临床前'        THEN 0.1
+                WHEN '申报临床'      THEN 0.5
+                WHEN 'I期临床'       THEN 1.0
+                WHEN 'I/II期临床'    THEN 1.5
+                WHEN 'II期临床'      THEN 2.0
+                WHEN 'II/III期临床'  THEN 2.5
+                WHEN 'III期临床'     THEN 3.0
+                WHEN '申请上市'      THEN 3.5
+                WHEN '批准上市'      THEN 4.0
                 ELSE NULL
             END AS stage_score,
             CASE indication_top_cn_latest_stage
-                WHEN '临床前'   THEN 'PreClinical'
-                WHEN '申报临床' THEN 'IND'
-                WHEN 'I期临床'  THEN 'Phase I'
-                WHEN 'I/II期临床' THEN 'Phase I/II'
-                WHEN 'II期临床'  THEN 'Phase II'
-                WHEN 'II/III期临床' THEN 'Phase II/III'
-                WHEN 'III期临床'  THEN 'Phase III'
-                WHEN '申请上市'  THEN 'BLA'
-                WHEN '批准上市'  THEN 'Approved'
+                WHEN '临床前'        THEN 'PreClinical'
+                WHEN '申报临床'      THEN 'IND'
+                WHEN 'I期临床'       THEN 'Phase I'
+                WHEN 'I/II期临床'    THEN 'Phase I/II'
+                WHEN 'II期临床'      THEN 'Phase II'
+                WHEN 'II/III期临床'  THEN 'Phase II/III'
+                WHEN 'III期临床'     THEN 'Phase III'
+                WHEN '申请上市'      THEN 'BLA'
+                WHEN '批准上市'      THEN 'Approved'
                 ELSE indication_top_cn_latest_stage
             END AS stage_display
         FROM latest_records
     """)
 
     # 视图三：normalized_target_records — 靶点归一化
-    # targets 字段为逗号/分号分隔的多靶点字符串，拆分后排序再拼接为 norm_targets
     conn.execute("""
         CREATE OR REPLACE VIEW normalized_target_records AS
         SELECT
             *,
             COALESCE(targets, '') AS targets_safe,
-            -- 归一化：去除空格、转大写，便于分组比较
             UPPER(TRIM(COALESCE(targets, ''))) AS norm_targets,
-            -- 靶点数量（逗号分隔）
             CASE
                 WHEN TRIM(COALESCE(targets, '')) = '' THEN 0
                 ELSE ARRAY_LENGTH(STRING_SPLIT(TRIM(targets), ','))
@@ -138,7 +116,7 @@ def get_conn() -> duckdb.DuckDBPyConnection:
 
 
 def reload_conn() -> None:
-    """热更新：重建 DuckDB 连接（数据同步后调用）。"""
+    """热更新：重建 DuckDB 连接（OSS 覆盖文件后调用）。"""
     global _conn
     with _lock:
         logger.info("重建 DuckDB 连接...")
@@ -149,4 +127,4 @@ def reload_conn() -> None:
                 old.close()
             except Exception:
                 pass
-        logger.info("DuckDB 连接热更新完成")
+    logger.info("DuckDB 连接热更新完成")

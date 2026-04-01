@@ -25,6 +25,15 @@ async def lifespan(app: FastAPI):
         f"启动 {settings.app_name} v{settings.app_version} [{settings.environment}]"
     )
 
+    # 启动时确保 parquet 就绪（有文件自动跳过，无文件从 OSS 拉取）
+    try:
+        from .tasks.oss_sync import run_sync
+
+        result = await run_sync()
+        logger.info(f"启动 parquet 检查: {result['msg']}")
+    except Exception as e:
+        logger.warning(f"启动 parquet 检查失败: {e}")
+
     # 预热 DuckDB 连接
     try:
         from .core.duckdb_conn import get_conn
@@ -34,7 +43,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"DuckDB 预热失败（parquet 文件可能不存在）: {e}")
 
-    # 启动定时同步任务
+    # 启动定时同步任务（每日 05:10 从 OSS 覆盖拉取）
     try:
         start_scheduler()
     except Exception as e:

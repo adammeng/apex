@@ -6,26 +6,35 @@ Apex 是一个药物研发数据管理与可视化平台，数据来源为 Pharm
 
 ## 技术栈
 
-- **前端**: React（待搭建）
-- **后端**: Python FastAPI（待搭建）
-- **数据层**: Parquet 文件 → Pandas/PyArrow 读取
-- **Python 版本**: 3.9（`.venv/` 已创建）
-- **已安装依赖**: pandas, pyarrow, ipykernel
+- **前端**: React 18 + TypeScript + Vite + Ant Design + React Query + Zustand
+- **后端**: Python FastAPI + DuckDB + Redis + MySQL + SQLAlchemy
+- **数据层**: Parquet 文件 → DuckDB in-memory 视图
+- **Python 版本**: 3.9（`backend/.venv/` 已就绪）
+- **本地中间件**: MySQL 9.6（Homebrew）、Redis 8.6（Homebrew）
 
 ## 项目结构
 
 ```
 Apex/
-├── CLAUDE.md              # 本文件 — 项目规范与需求
+├── AGENTS.md              # 项目规范与需求（本文件）
+├── README.md              # 项目入口说明
 ├── parquet/               # 数据源（parquet 文件）
 │   ├── pharmcube2harbour_ci_tracking_info_0.parquet       # 临床试验跟踪信息（43943 行 × 63 列）
 │   ├── pharmcube2harbour_clinical_trial_detail_info_0.parquet  # 临床试验详情（16282 行 × 55 列）
 │   └── pharmcube2harbour_drug_pipeline_info_0.parquet     # 药物管线信息（3457 行 × 53 列）
+├── backend/               # FastAPI 后端
+│   ├── app/               # 应用代码
+│   ├── alembic/           # 数据库迁移
+│   ├── .env               # 本地环境变量（不提交）
+│   └── requirements.txt
+├── frontend/              # React 前端
+│   ├── src/
+│   └── package.json
+├── deploy/                # Docker Compose + Nginx 部署配置
 ├── 需求/                   # 需求文档
 │   └── SCR-20260330-mxen.png
-├── requirements.parquet-viewer.txt
-├── .venv/                 # Python 虚拟环境
-└── .vscode/               # VSCode 配置
+├── data/                  # 运行时数据目录
+└── .venv/                 # 根级 Python 虚拟环境（parquet 查看工具用）
 ```
 
 ## 数据源
@@ -147,9 +156,27 @@ commit message 格式：`<type>: <描述>`，描述使用中文。type 取值如
 ## 开发计划
 
 1. [x] 项目初始化 & 需求分析
-2. [ ] 后端搭建（FastAPI + 数据读取层）
-3. [ ] 前端搭建（React + 路由 + 基础布局）
-4. [ ] 数据总览模块
+2. [x] 后端搭建（FastAPI + DuckDB 数据读取层 + Redis + MySQL）
+   - [x] 应用入口、配置体系、日志
+   - [x] DuckDB 单例连接 + 6 张 parquet 视图
+   - [x] Redis 异步缓存工具
+   - [x] MySQL 建库建表（Alembic 迁移 001_sync_tables）
+   - [x] 健康检查、元数据接口（疾病树 / 靶点 / 阶段枚举）
+   - [x] APScheduler 定时同步骨架
+   - [ ] 飞书 OAuth 完整登录流程
+   - [ ] 竞争矩阵查询（/matrix/query, /matrix/tooltip）
+   - [ ] 研发泳道查询（/pipeline/query）
+   - [ ] 导出功能（/export/jobs, /export/jobs/{id}/download）
+3. [x] 前端搭建（React + 路由 + 基础布局）
+   - [x] 四页路由：/ 总览 / /matrix 竞争矩阵 / /pipeline 泳道 / /competition 竞争格局
+   - [x] AppLayout（左侧导航 + 顶部栏）
+   - [x] 统一请求实例（Axios + JWT 注入 + 401 跳转）
+   - [x] Zustand 鉴权 & 筛选状态
+   - [ ] 数据总览模块（真实数据渲染）
+   - [ ] 竞争矩阵模块
+   - [ ] 研发泳道模块
+   - [ ] 竞争格局模块
+4. [ ] 数据总览模块（前后端联调）
 5. [ ] 药物管线分析模块
 6. [ ] 临床试验分析模块
 7. [ ] 竞争格局分析模块
@@ -157,4 +184,5 @@ commit message 格式：`<type>: <描述>`，描述使用中文。type 取值如
 
 ## 已知问题
 
-- 暂无
+- `app/models/sync.py` 中 `Mapped[str | None]` 需用 `Optional[str]` 替代（Python 3.9 兼容，已修复）
+- `urllib3 NotOpenSSLWarning`：macOS 自带 LibreSSL 触发，不影响功能，可忽略

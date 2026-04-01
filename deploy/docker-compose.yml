@@ -1,30 +1,5 @@
 services:
 
-  # ── 一次性初始化容器 ─────────────────────────────────────────────────────────
-  # 职责：alembic 建表/迁移 + 首次 parquet 拉取（本地有文件则复制，否则从 OSS 下载）
-  # restart: no 保证只跑一次；backend 等待它 healthy 才启动
-  init:
-    build:
-      context: ../backend
-      dockerfile: Dockerfile
-    container_name: apex_init
-    restart: "no"
-    env_file: ../backend/.env
-    volumes:
-      - ../data:/data
-      - ../backend/parquet:/parquet:ro   # 本地 parquet（有则优先复制，无则走 OSS）
-    command: >
-      sh -c "python -m scripts.init_data && echo 'INIT_DONE'"
-    depends_on:
-      mysql:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "test -L /data/parquet_current || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 60          # 最长等 5 分钟（OSS 下载较慢时）
-      start_period: 10s
-
   # ── 后端 API ─────────────────────────────────────────────────────────────────
   backend:
     build:
@@ -35,21 +10,22 @@ services:
     env_file: ../backend/.env
     volumes:
       - ../data:/data
+      - ../backend/parquet:/app/parquet   # parquet 固定目录，容器内同路径
     ports:
       - "8000:8000"
     depends_on:
-      init:
-        condition: service_healthy
       mysql:
         condition: service_healthy
       redis:
         condition: service_started
+    command: >
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/system/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 15s
+      start_period: 20s
 
   # ── MySQL ─────────────────────────────────────────────────────────────────────
   mysql:

@@ -13,18 +13,29 @@
 - Zustand
 - Axios
 
-## 当前实现
+## 当前实现进度
 
-- 基础布局已完成：左侧导航 + 顶部栏 + 内容区
-- 已接入中文 `antd` locale
-- 已配置统一请求实例和 JWT 注入逻辑
-- 已建立四个一级页面路由：
-  - `/` 数据总览
-  - `/matrix` 竞争矩阵
-  - `/pipeline` 研发泳道
-  - `/competition` 竞争格局
+| 模块 | 文件 | 状态 |
+| --- | --- | --- |
+| 基础布局（左侧导航 + 顶部栏） | `src/components/AppLayout.tsx` | 已完成 |
+| 路由鉴权守卫 | `src/components/RequireAuth.tsx` | 已完成 |
+| Axios 请求实例（JWT 注入 + 401 跳转） | `src/services/request.ts` | 已完成 |
+| 鉴权 API 封装 | `src/services/auth.ts` | 已完成 |
+| 元数据 API 封装 | `src/services/meta.ts` | 已完成 |
+| 业务分析 API 封装 | `src/services/analysis.ts` | 已完成（占位） |
+| Zustand 鉴权状态 | `src/stores/auth.ts` | 已完成 |
+| Zustand 筛选状态 | `src/stores/filter.ts` | 已完成 |
+| 数据总览页 | `src/pages/dashboard/index.tsx` | 静态占位，待联调 |
+| 竞争矩阵页 | `src/pages/matrix/index.tsx` | 静态占位，待实现 |
+| 研发泳道页 | `src/pages/pipeline/index.tsx` | 静态占位，待实现 |
+| 竞争格局页 | `src/pages/competition/index.tsx` | 静态占位，待实现 |
 
-当前页面以框架搭建和静态展示为主，后续会继续联调后端接口与补齐交互逻辑。
+## 后续重点
+
+- 补齐各模块真实数据渲染（从 `/api/meta`、`/api/matrix`、`/api/pipeline` 拉取）
+- 接入飞书登录态
+- 完善筛选、详情、导出等交互
+- 优化图表与大表格性能
 
 ## 环境变量
 
@@ -100,7 +111,7 @@ frontend/
 
 ## 后续重点
 
-- 补齐各模块真实数据渲染
+- 补齐各模块真实数据渲染（从 `/api/meta`、`/api/matrix`、`/api/pipeline` 拉取）
 - 接入飞书登录态
 - 完善筛选、详情、导出等交互
 - 优化图表与大表格性能
