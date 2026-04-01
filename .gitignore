@@ -24,10 +24,11 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
-# Env
-.env
-.env.local
-.env.*.local
+# Env — 各子目录自己管理，不追踪真实凭据
+backend/.env
+backend/.env.local
+frontend/.env.local
+frontend/.env.*.local
 
 # Data (parquet files are large, don't track)
 parquet/
