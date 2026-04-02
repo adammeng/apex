@@ -1,7 +1,30 @@
 import axios from 'axios'
 
+function resolveApiBaseUrl() {
+  if (import.meta.env.DEV) {
+    // 开发模式统一走同源 /api，由 Vite 代理转发，避免 localhost/IP 混用引发跨域。
+    return '/api'
+  }
+
+  const rawBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
+  if (!rawBaseUrl) {
+    return '/api'
+  }
+
+  if (!/^https?:\/\//i.test(rawBaseUrl)) {
+    return rawBaseUrl
+  }
+
+  const normalized = rawBaseUrl.replace(/\/+$/, '')
+  if (normalized.endsWith('/api')) {
+    return normalized
+  }
+
+  return `${normalized}/api`
+}
+
 const request = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL: resolveApiBaseUrl(),
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
