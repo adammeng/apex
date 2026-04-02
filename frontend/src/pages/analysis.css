@@ -30,10 +30,9 @@
 .analysis-page__hero {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
-  padding: 14px 24px;
-  border-radius: 16px;
+  padding: 10px 20px;
+  border-radius: 12px;
   background:
     radial-gradient(circle at top right, rgba(31, 111, 235, 0.18), transparent 35%),
     linear-gradient(135deg, #fbfcff 0%, #eef4ff 100%);
@@ -98,6 +97,13 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+/* hero 内联时不换行，撑满中间空间 */
+.analysis-filter-bar--inline {
+  flex: 1;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
 .analysis-filter-bar__item {

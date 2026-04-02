@@ -1,8 +1,9 @@
-import { Button, Card, Space, Switch, Tag, Typography } from 'antd'
-import { FilterOutlined, ReloadOutlined } from '@ant-design/icons'
+import { Button, Space, Switch, Tag, Tooltip, Typography } from 'antd'
+import { DownloadOutlined, FilterOutlined, FullscreenExitOutlined, FullscreenOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import MatrixBoard from '../../components/analysis/MatrixBoard'
+import type { MatrixBoardHandle } from '../../components/analysis/MatrixBoard'
 import { DiseaseTreeFilter, StageFilter } from '../../components/analysis/filters'
 import { matrixApi } from '../../services/analysis'
 import { metaApi } from '../../services/meta'
@@ -19,7 +20,10 @@ export default function MatrixPage() {
   const setMatrixHideNoCombo = useFilterStore((state) => state.setMatrixHideNoCombo)
   const resetMatrix = useFilterStore((state) => state.resetMatrix)
 
-  const { data: dictionaries, isLoading: dictionariesLoading } = useQuery({
+  const boardRef = useRef<MatrixBoardHandle>(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  const { data: dictionaries } = useQuery({
     queryKey: ['analysis-dictionaries'],
     queryFn: metaApi.getDictionaries,
   })
@@ -34,10 +38,7 @@ export default function MatrixPage() {
   )
 
   useEffect(() => {
-    if (!dictionaries) {
-      return
-    }
-
+    if (!dictionaries) return
     initializeMatrix({
       selectedDiseases: allDiseases,
       selectedStages: allStageValues,
@@ -62,29 +63,26 @@ export default function MatrixPage() {
     })
   }
 
+  function handleToggleFullscreen() {
+    void boardRef.current?.toggleFullscreen().then(() => {
+      setIsFullscreen(boardRef.current?.isFullscreen ?? false)
+    })
+  }
+
   return (
     <div className="analysis-page">
       <div className="analysis-page__hero">
+        {/* 左：标题 */}
         <div className="analysis-page__hero-left">
-          <Title level={3}>靶点组合竞争格局</Title>
-          <p>以疾病维度筛选最新临床记录，按靶点最高研发阶段生成组合热力矩阵。</p>
+          <Title level={4} style={{ margin: 0, whiteSpace: 'nowrap' }}>靶点组合竞争格局</Title>
         </div>
-        <div className="analysis-page__meta">
-          {data?.available_target_total != null && (
-            <Tag color="geekblue">靶点数 {data.available_target_total}</Tag>
-          )}
-          {data?.targets?.length != null && (
-            <Tag color="cyan">当前展示 {data.targets.length}</Tag>
-          )}
-        </div>
-      </div>
 
-      <Card loading={dictionariesLoading} className="analysis-filter-card">
-        <div className="analysis-filter-bar">
+        {/* 中：筛选栏 */}
+        <div className="analysis-filter-bar analysis-filter-bar--inline">
           <FilterOutlined style={{ color: '#8494b0', flexShrink: 0 }} />
 
           <div className="analysis-filter-bar__item">
-            <span className="analysis-filter-bar__label">疾病筛选</span>
+            <span className="analysis-filter-bar__label">疾病</span>
             <DiseaseTreeFilter
               diseaseTree={dictionaries?.disease_tree ?? []}
               value={matrix.selectedDiseases}
@@ -93,7 +91,7 @@ export default function MatrixPage() {
           </div>
 
           <div className="analysis-filter-bar__item">
-            <span className="analysis-filter-bar__label">研发阶段</span>
+            <span className="analysis-filter-bar__label">阶段</span>
             <StageFilter
               stages={dictionaries?.stages ?? []}
               value={matrix.selectedStages}
@@ -101,29 +99,52 @@ export default function MatrixPage() {
             />
           </div>
 
-          <div className="analysis-filter-bar__actions">
-            <Button
-              size="small"
-              icon={<ReloadOutlined />}
-              className="analysis-filter-btn"
-              onClick={handleReset}
-            >
-              重置筛选
-            </Button>
-          </div>
-
-          <div style={{ flex: 1 }} />
+          <Button
+            size="small"
+            icon={<ReloadOutlined />}
+            className="analysis-filter-btn"
+            onClick={handleReset}
+          >
+            重置
+          </Button>
 
           <div className="analysis-filter-bar__divider" />
 
           <Space size={6}>
             <Switch size="small" checked={matrix.hideNoCombo} onChange={setMatrixHideNoCombo} />
-            <Text style={{ whiteSpace: 'nowrap', fontSize: 13, color: '#52617c' }}>隐藏无组合的靶点</Text>
+            <Text style={{ whiteSpace: 'nowrap', fontSize: 13, color: '#52617c' }}>隐藏无组合</Text>
           </Space>
         </div>
-      </Card>
+
+        {/* 右：靶点数 + 导出 + 全屏 */}
+        <div className="analysis-page__meta">
+          {data?.available_target_total != null && (
+            <Tag color="geekblue">靶点数 {data.available_target_total}</Tag>
+          )}
+          <div className="analysis-filter-bar__divider" />
+          <Tooltip title="导出当前矩阵为 CSV">
+            <Button
+              size="small"
+              icon={<DownloadOutlined />}
+              onClick={() => boardRef.current?.exportCsv()}
+            >
+              导出
+            </Button>
+          </Tooltip>
+          <Tooltip title={isFullscreen ? '退出全屏' : '全屏查看'}>
+            <Button
+              size="small"
+              icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
+              onClick={handleToggleFullscreen}
+            >
+              {isFullscreen ? '退出全屏' : '全屏'}
+            </Button>
+          </Tooltip>
+        </div>
+      </div>
 
       <MatrixBoard
+        ref={boardRef}
         data={data}
         isLoading={isLoading}
         diseases={matrix.selectedDiseases}

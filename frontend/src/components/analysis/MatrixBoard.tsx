@@ -1,6 +1,5 @@
-import { Button, Empty, Spin, Tooltip } from 'antd'
-import { DownloadOutlined, FullscreenExitOutlined, FullscreenOutlined } from '@ant-design/icons'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Empty, Spin } from 'antd'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { MatrixCell, MatrixQueryResult } from '../../services/analysis'
 import MatrixTooltipCard from './MatrixTooltipCard'
@@ -14,6 +13,12 @@ const COL_TARGET_W = 180   // 行头"Target"列宽 px
 const COL_PHASE_W = 118    // 行头"Phase score"列宽 px
 const COL_W = 118          // 数据列宽 px
 const FIXED_W = COL_TARGET_W + COL_PHASE_W  // 左侧两固定列总宽
+
+export interface MatrixBoardHandle {
+  isFullscreen: boolean
+  toggleFullscreen: () => Promise<void>
+  exportCsv: () => void
+}
 
 interface MatrixBoardProps {
   data?: MatrixQueryResult
@@ -29,12 +34,12 @@ interface TooltipState {
   top: number
 }
 
-export default function MatrixBoard({
+const MatrixBoard = forwardRef<MatrixBoardHandle, MatrixBoardProps>(function MatrixBoard({
   data,
   isLoading,
   diseases,
   stages,
-}: MatrixBoardProps) {
+}, ref) {
   const [tooltip, setTooltip] = useState<TooltipState | null>(null)
   const boardRef = useRef<HTMLDivElement | null>(null)
   const closeTimerRef = useRef<number | null>(null)
@@ -62,6 +67,33 @@ export default function MatrixBoard({
   const colCount = targets.length
   const totalDataW = colCount * COL_W   // 数据区内容总宽度
   const totalDataH = rowCount * ROW_H   // 数据区内容总高度
+
+  // ── 导出 ─────────────────────────────────────────────────────────────────
+  const handleExport = useCallback(() => {
+    if (!data) return
+    const header = ['靶点（行）', '最高阶段分', ...targets]
+    const rows: string[][] = [header]
+    for (const rowTarget of targets) {
+      const singleScore = data.single_max[rowTarget]?.score
+      const row: string[] = [
+        rowTarget,
+        singleScore != null ? singleScore.toFixed(1) : '',
+        ...targets.map((colTarget) => {
+          if (rowTarget === colTarget) return '-'
+          const cell = cellMap.get(getCellKey(rowTarget, colTarget))
+          return cell?.score != null ? cell.score.toFixed(1) : ''
+        }),
+      ]
+      rows.push(row)
+    }
+    downloadCsv('靶点组合竞争矩阵.csv', buildCsv(rows))
+  }, [data, targets, cellMap])
+
+  useImperativeHandle(ref, () => ({
+    isFullscreen,
+    toggleFullscreen,
+    exportCsv: handleExport,
+  }), [isFullscreen, toggleFullscreen, handleExport])
 
   // ── 行虚拟化（数据区垂直方向） ───────────────────────────────────────────
   const rowVirtualizer = useVirtualizer({
@@ -129,27 +161,6 @@ export default function MatrixBoard({
     []
   )
 
-  // ── 导出 ─────────────────────────────────────────────────────────────────
-  function handleExport() {
-    if (!data) return
-    const header = ['靶点（行）', '最高阶段分', ...targets]
-    const rows: string[][] = [header]
-    for (const rowTarget of targets) {
-      const singleScore = data.single_max[rowTarget]?.score
-      const row: string[] = [
-        rowTarget,
-        singleScore != null ? singleScore.toFixed(1) : '',
-        ...targets.map((colTarget) => {
-          if (rowTarget === colTarget) return '-'
-          const cell = cellMap.get(getCellKey(rowTarget, colTarget))
-          return cell?.score != null ? cell.score.toFixed(1) : ''
-        }),
-      ]
-      rows.push(row)
-    }
-    downloadCsv('靶点组合竞争矩阵.csv', buildCsv(rows))
-  }
-
   // ── Early returns ─────────────────────────────────────────────────────────
   if (isLoading) {
     return (
@@ -170,23 +181,6 @@ export default function MatrixBoard({
   // ── 渲染 ──────────────────────────────────────────────────────────────────
   return (
     <div ref={boardRef} className="analysis-board analysis-board--matrix">
-      {/* Toolbar */}
-      <div className="analysis-board__toolbar">
-        <Tooltip title="导出当前矩阵为 CSV">
-          <Button size="small" icon={<DownloadOutlined />} onClick={handleExport}>
-            导出
-          </Button>
-        </Tooltip>
-        <Tooltip title={isFullscreen ? '退出全屏' : '全屏查看'}>
-          <Button
-            size="small"
-            icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
-            onClick={() => void toggleFullscreen()}
-          >
-            {isFullscreen ? '退出全屏' : '全屏'}
-          </Button>
-        </Tooltip>
-      </div>
 
       {/*
         ┌─────────────────────────────────────────────────────────────┐
@@ -391,4 +385,6 @@ export default function MatrixBoard({
       ) : null}
     </div>
   )
-}
+})
+
+export default MatrixBoard
