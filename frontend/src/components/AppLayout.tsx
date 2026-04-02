@@ -1,7 +1,7 @@
-import { Layout, Menu, Typography, Avatar, Button, Tag } from 'antd'
+import { Layout, Menu, Avatar } from 'antd'
 import {
-  TableOutlined,
-  ApartmentOutlined,
+  AppstoreOutlined,
+  RiseOutlined,
   UserOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -12,17 +12,17 @@ import { useQuery } from '@tanstack/react-query'
 import { systemApi } from '../services/system'
 import { useAuthStore } from '../stores/auth'
 import { formatDateTime } from '../utils/datetime'
+import './AppLayout.css'
 
 const { Header, Sider, Content } = Layout
-const { Title } = Typography
 
 interface AppLayoutProps {
   children: ReactNode
 }
 
 const menuItems = [
-  { key: '/matrix', icon: <TableOutlined />, label: '靶点组合竞争格局' },
-  { key: '/pipeline', icon: <ApartmentOutlined />, label: '靶点研发进展格局' },
+  { key: '/matrix', icon: <AppstoreOutlined />, label: '靶点组合竞争格局' },
+  { key: '/pipeline', icon: <RiseOutlined />, label: '靶点研发进展格局' },
 ]
 
 export default function AppLayout({ children }: AppLayoutProps) {
@@ -38,89 +38,108 @@ export default function AppLayout({ children }: AppLayoutProps) {
     syncStatus?.latest_version?.synced_at ?? syncStatus?.latest_sync_job?.updated_at ?? null
   )
 
+  const currentPage = menuItems.find((item) => item.key === location.pathname)
+
   return (
-    <Layout style={{ height: '100vh', overflow: 'hidden' }}>
+    <Layout className="app-shell" style={{ height: '100vh', overflow: 'hidden' }}>
       <Sider
-        width={220}
-        collapsedWidth={72}
+        className="app-shell__sider"
+        width={240}
+        collapsedWidth={64}
         collapsible
         collapsed={collapsed}
         trigger={null}
         theme="dark"
-        style={{ overflow: 'auto' }}
+        style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
       >
-        <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-          <Title level={4} style={{ color: '#fff', margin: 0 }}>
-            {collapsed ? 'A' : 'Apex'}
-          </Title>
-          {!collapsed ? (
-            <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12 }}>药物研发情报平台</div>
-          ) : null}
-        </div>
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={[location.pathname]}
-          items={menuItems}
-          onClick={({ key }) => navigate(key)}
-          style={{ marginTop: 8 }}
-        />
-      </Sider>
-      <Layout style={{ minWidth: 0 }}>
-        <Header
-          style={{
-            background: '#fff',
-            padding: '0 24px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 16,
-            borderBottom: '1px solid #f0f0f0',
-            flex: '0 0 auto',
-          }}
-        >
-          <Button
-            type="text"
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            onClick={() => setCollapsed((value) => !value)}
-            aria-label={collapsed ? '展开菜单' : '折叠菜单'}
-          />
-          {/* 当前页面标题 */}
-          <span style={{ fontSize: 13, color: '#8a96a8', fontWeight: 500, letterSpacing: '0.01em' }}>
-            {menuItems.find((item) => item.key === location.pathname)?.label ?? ''}
-          </span>
-          <div style={{ flex: 1 }} />
-          {syncedAt ? <Tag color="blue">系统同步至 {syncedAt}</Tag> : null}
-          {user && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Avatar
-                size={28}
-                src={user.avatar_url || undefined}
-                icon={!user.avatar_url && <UserOutlined />}
-                style={{ background: '#1677ff' }}
-              />
-              <span style={{ color: '#333', fontSize: 13 }}>{user.name}</span>
+        <div className={`app-sider__brand ${collapsed ? 'is-collapsed' : ''}`}>
+          {collapsed ? (
+            <div className="app-sider__brand-mark">
+              A
+            </div>
+          ) : (
+            <div className="app-sider__brand-text">
+              <div className="app-sider__brand-title">Apex</div>
+              <div className="app-sider__brand-subtitle">药物研发情报平台</div>
             </div>
           )}
-        </Header>
-        <Content
-          style={{
-            margin: 24,
-            minHeight: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
+        </div>
+
+        {!collapsed && (
+          <div className="app-sider__caption">
+            MAIN NAVIGATION
+          </div>
+        )}
+
+        <div className="app-sider__menu-wrap">
+          <Menu
+            className="app-sider__menu"
+            theme="dark"
+            mode="inline"
+            selectedKeys={[location.pathname]}
+            items={menuItems}
+            onClick={({ key }) => navigate(key)}
+            style={{ background: 'transparent', border: 'none', marginTop: collapsed ? 8 : 0 }}
+          />
+        </div>
+
+        {user && (
+          <div className={`app-sider__user ${collapsed ? 'is-collapsed' : ''}`}>
+            <Avatar
+              size={32}
+              src={user.avatar_url || undefined}
+              icon={!user.avatar_url && <UserOutlined />}
+              className="app-sider__user-avatar"
+            />
+            {!collapsed && (
+              <div className="app-sider__user-meta">
+                <div className="app-sider__user-name">{user.name}</div>
+                <div className="app-sider__user-email">{user.email ?? ''}</div>
+              </div>
+            )}
+          </div>
+        )}
+      </Sider>
+
+      <Layout className="app-shell__main" style={{ minWidth: 0 }}>
+        <Header
+          className="app-header"
+          style={{ height: 64, lineHeight: '64px', flex: '0 0 auto' }}
         >
-          <div
-            style={{
-              flex: 1,
-              minHeight: 0,
-              minWidth: 0,
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-            }}
+          <button
+            className="app-header__icon-btn"
+            onClick={() => setCollapsed((value) => !value)}
+            aria-label={collapsed ? '展开菜单' : '折叠菜单'}
           >
+            {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+          </button>
+
+          <nav className="app-header__crumbs">
+            <span className="app-header__crumb" onClick={() => navigate('/matrix')}>
+              首页
+            </span>
+            {currentPage && (
+              <>
+                <span className="app-header__crumb-sep">/</span>
+                <span className="app-header__crumb app-header__crumb--current">{currentPage.label}</span>
+              </>
+            )}
+          </nav>
+
+          {syncedAt && (
+            <div className="app-header__sync">
+              <span className="app-header__sync-dot" />
+              系统同步至 {syncedAt}
+            </div>
+          )}
+
+        </Header>
+
+        <Content
+          className="app-shell__content"
+          style={{ minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+        >
+          <div className="app-shell__content-inner">
             {children}
           </div>
         </Content>
