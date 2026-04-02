@@ -316,15 +316,17 @@ V1 统一把 `ci_tracking_info` 视为主事实表，原因：
 
 ### 7.4 Redis 缓存键设计
 
-- `matrix:{md5(params)}`
-- `matrix_tooltip:{md5(params)}`
-- `pipeline:{md5(params)}`
-- `ai_task:{task_id}`（V2）
+所有业务查询缓存统一使用 `apex:` 命名空间前缀：
+
+- `apex:matrix:{md5(params)}`
+- `apex:matrix_tooltip:{md5(params)}`
+- `apex:pipeline:{md5(params)}`
+- `ai_task:{task_id}`（V2，不在批量失效范围内）
 
 策略：
 
 - TTL 默认 1 小时
-- 同步任务成功后批量失效
+- 同步任务成功后通过 `cache_flush_pattern("apex:*")` 批量失效，命名空间需与 key 生成规则保持一致
 - `meta` 类接口不必强制缓存，DuckDB 直查即可
 
 ## 8. 关键后端接口设计
@@ -449,7 +451,7 @@ flowchart LR
 关键实现细节：
 
 - 先下载到临时目录，校验通过后再 rename
-- DuckDB 连接通过读写锁或原子引用切换，避免热更新中断请求
+- DuckDB 采用"全局单例连接 + 每请求独立 cursor"模式：`get_cursor()` 返回 `_conn.cursor()`，执行上下文隔离，线程安全；`reload_conn()` 加锁重建连接后旧 cursor 自动失效
 - 每次同步必须记录版本号和异常日志
 - 失败时保留旧版本继续服务
 

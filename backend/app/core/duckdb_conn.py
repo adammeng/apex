@@ -3,6 +3,7 @@ DuckDB 连接管理
 - 单例模式，全局共享一个 in-memory 连接，直接读 parquet 外部表
 - parquet 路径固定为 backend/parquet/（由 settings.parquet_path 提供）
 - 支持热更新（OSS 同步覆盖文件后调用 reload_conn）
+- 并发安全：业务代码应使用 get_cursor() 获取线程独立游标，而非直接使用裸连接
 """
 
 import threading
@@ -106,13 +107,22 @@ def _create_connection() -> duckdb.DuckDBPyConnection:
 
 
 def get_conn() -> duckdb.DuckDBPyConnection:
-    """获取全局 DuckDB 连接（懒初始化）。"""
+    """获取全局 DuckDB 连接（懒初始化）。仅供预热/内部使用，业务代码请用 get_cursor()。"""
     global _conn
     if _conn is None:
         with _lock:
             if _conn is None:
                 _conn = _create_connection()
     return _conn
+
+
+def get_cursor() -> duckdb.DuckDBPyConnection:
+    """
+    获取线程独立的 DuckDB cursor。
+    每次调用返回新 cursor，与全局连接共享 in-memory 数据库，但执行上下文隔离，线程安全。
+    业务路由中应始终使用此函数，不要直接使用 get_conn()。
+    """
+    return get_conn().cursor()
 
 
 def reload_conn() -> None:

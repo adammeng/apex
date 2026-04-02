@@ -4,7 +4,7 @@
 
 from fastapi import APIRouter, Query
 
-from ..core.duckdb_conn import get_conn
+from ..core.duckdb_conn import get_cursor
 from ..schemas.response import ApiResponse
 
 router = APIRouter(prefix="/meta", tags=["元数据"])
@@ -15,7 +15,7 @@ async def disease_tree():
     """
     返回两级树结构：治疗领域(ta) -> 疾病(harbour_indication_name)。
     """
-    conn = get_conn()
+    conn = get_cursor()
     rows = conn.execute("""
         SELECT
             COALESCE(ta, '未分类') AS ta,
@@ -43,7 +43,7 @@ async def targets(disease: str = Query(None, description="按适应症过滤")):
     返回靶点列表。可选 disease 参数过滤特定适应症下的靶点。
     使用参数化查询，避免 SQL 注入。
     """
-    conn = get_conn()
+    conn = get_cursor()
 
     if disease:
         # 参数化查询：DuckDB Python API 使用位置参数 $1/$2...

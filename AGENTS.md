@@ -186,3 +186,8 @@ commit message 格式：`<type>: <描述>`，描述使用中文。type 取值如
 
 - `app/models/sync.py` 中 `Mapped[str | None]` 需用 `Optional[str]` 替代（Python 3.9 兼容，已修复）
 - `urllib3 NotOpenSSLWarning`：macOS 自带 LibreSSL 触发，不影响功能，可忽略
+
+## 并发安全规范
+
+- **DuckDB 查询**：业务路由中统一使用 `get_cursor()`（`core/duckdb_conn.py`），禁止直接调用 `get_conn()`。`get_cursor()` 每次返回独立 cursor，与全局连接共享内存数据库但执行上下文隔离，线程安全。`get_conn()` 仅供启动预热使用。
+- **Redis 缓存键**：所有通过 `make_cache_key()` 生成的 key 格式为 `apex:<prefix>:<md5>`，与 `cache_flush_pattern("apex:*")` 命名空间一致，数据同步后缓存可被正确清除。

@@ -78,7 +78,11 @@ async def cache_flush_pattern(pattern: str) -> int:
 
 
 def make_cache_key(prefix: str, params: Any) -> str:
-    """基于参数 dict 生成稳定的缓存 key。"""
+    """
+    基于参数 dict 生成稳定的缓存 key。
+    格式：apex:<prefix>:<md5>
+    统一 apex: 命名空间，与 cache_flush_pattern("apex:*") 保持一致。
+    """
     params_str = json.dumps(params, sort_keys=True, ensure_ascii=False)
     params_hash = hashlib.md5(params_str.encode()).hexdigest()
-    return f"{prefix}:{params_hash}"
+    return f"apex:{prefix}:{params_hash}"
