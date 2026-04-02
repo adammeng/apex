@@ -1,9 +1,15 @@
-import { Button, Empty, Spin, Tag, Tooltip } from 'antd'
-import { DownloadOutlined, FullscreenExitOutlined, FullscreenOutlined } from '@ant-design/icons'
-import React, { useRef } from 'react'
+import { Empty, Spin, Tag } from 'antd'
+import { forwardRef, useCallback, useImperativeHandle, useRef } from 'react'
+import React from 'react'
 import type { PipelineQueryResult, TooltipDrug } from '../../services/analysis'
 import { buildCsv, downloadCsv, getDrugDisplayName, getScoreStyle } from './utils'
 import { useBoardFullscreen } from './useBoardFullscreen'
+
+export interface PipelineBoardHandle {
+  isFullscreen: boolean
+  toggleFullscreen: () => Promise<void>
+  exportCsv: () => void
+}
 
 interface PipelineBoardProps {
   data?: PipelineQueryResult
@@ -29,11 +35,14 @@ function PipelineDrugCard({ drug }: { drug: TooltipDrug }) {
   )
 }
 
-export default function PipelineBoard({ data, isLoading }: PipelineBoardProps) {
+const PipelineBoard = forwardRef<PipelineBoardHandle, PipelineBoardProps>(function PipelineBoard(
+  { data, isLoading },
+  ref
+) {
   const boardRef = useRef<HTMLDivElement | null>(null)
   const { isFullscreen, toggleFullscreen } = useBoardFullscreen(boardRef)
 
-  function handleExport() {
+  const handleExport = useCallback(() => {
     if (!data) return
     const header = [
       '疾病', '靶点', '泳道（阶段）', '药物名（英）', '药物名（中）',
@@ -61,7 +70,13 @@ export default function PipelineBoard({ data, isLoading }: PipelineBoardProps) {
       }
     }
     downloadCsv(`靶点研发进展格局_${data.disease}.csv`, buildCsv(rows))
-  }
+  }, [data])
+
+  useImperativeHandle(ref, () => ({
+    isFullscreen,
+    toggleFullscreen,
+    exportCsv: handleExport,
+  }), [isFullscreen, toggleFullscreen, handleExport])
 
   if (isLoading) {
     return (
@@ -83,22 +98,6 @@ export default function PipelineBoard({ data, isLoading }: PipelineBoardProps) {
 
   return (
     <div ref={boardRef} className="analysis-board analysis-board--pipeline">
-      <div className="analysis-board__toolbar">
-        <Tooltip title="导出当前泳道数据为 CSV">
-          <Button size="small" icon={<DownloadOutlined />} onClick={handleExport}>
-            导出
-          </Button>
-        </Tooltip>
-        <Tooltip title={isFullscreen ? '退出全屏' : '全屏查看'}>
-          <Button
-            size="small"
-            icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
-            onClick={() => void toggleFullscreen()}
-          >
-            {isFullscreen ? '退出全屏' : '全屏'}
-          </Button>
-        </Tooltip>
-      </div>
       <div className="pipeline-scroll">
         <table className="pipeline-table" style={{ '--pipeline-lane-count': laneCount } as React.CSSProperties}>
           <thead>
@@ -143,4 +142,6 @@ export default function PipelineBoard({ data, isLoading }: PipelineBoardProps) {
       </div>
     </div>
   )
-}
+})
+
+export default PipelineBoard

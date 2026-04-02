@@ -1,8 +1,9 @@
-import { Button, Card, Space, Tag, Typography } from 'antd'
-import { FilterOutlined, ReloadOutlined } from '@ant-design/icons'
+import { Button, Space, Switch, Tag, Tooltip, Typography } from 'antd'
+import { DownloadOutlined, FilterOutlined, FullscreenExitOutlined, FullscreenOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import PipelineBoard from '../../components/analysis/PipelineBoard'
+import type { PipelineBoardHandle } from '../../components/analysis/PipelineBoard'
 import { DiseaseSingleSelect, TargetMultiSelect } from '../../components/analysis/filters'
 import { pipelineApi } from '../../services/analysis'
 import { metaApi } from '../../services/meta'
@@ -18,16 +19,16 @@ export default function PipelinePage() {
   const markPipelineTargetsHydrated = useFilterStore((state) => state.markPipelineTargetsHydrated)
   const resetPipeline = useFilterStore((state) => state.resetPipeline)
 
-  const { data: dictionaries, isLoading: dictionariesLoading } = useQuery({
+  const boardRef = useRef<PipelineBoardHandle>(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  const { data: dictionaries } = useQuery({
     queryKey: ['analysis-dictionaries'],
     queryFn: metaApi.getDictionaries,
   })
 
   useEffect(() => {
-    if (!dictionaries?.diseases.length || pipeline.selectedDisease) {
-      return
-    }
-
+    if (!dictionaries?.diseases.length || pipeline.selectedDisease) return
     setPipelineDisease(dictionaries.diseases[0]?.name)
   }, [dictionaries, pipeline.selectedDisease, setPipelineDisease])
 
@@ -38,9 +39,7 @@ export default function PipelinePage() {
   })
 
   useEffect(() => {
-    if (!targetData || !pipeline.selectedDisease) {
-      return
-    }
+    if (!targetData || !pipeline.selectedDisease) return
 
     const availableTargets = targetData.targets
     const nextSelectedTargets = pipeline.selectedTargets.filter((target) => availableTargets.includes(target))
@@ -71,12 +70,8 @@ export default function PipelinePage() {
   const targetGroups = useMemo(() => targetData?.groups ?? [], [targetData])
   const allTargets = useMemo(() => targetData?.targets ?? [], [targetData])
   const targetPayload = useMemo(() => {
-    if (!targetData) {
-      return undefined
-    }
-    if (pipeline.selectedTargets.length === allTargets.length) {
-      return undefined
-    }
+    if (!targetData) return undefined
+    if (pipeline.selectedTargets.length === allTargets.length) return undefined
     return pipeline.selectedTargets
   }, [allTargets.length, pipeline.selectedTargets, targetData])
 
@@ -91,10 +86,7 @@ export default function PipelinePage() {
   })
 
   function handleReset() {
-    if (!dictionaries?.diseases.length) {
-      return
-    }
-
+    if (!dictionaries?.diseases.length) return
     const firstDisease = dictionaries.diseases[0].name
     resetPipeline({
       disease: firstDisease,
@@ -102,24 +94,26 @@ export default function PipelinePage() {
     })
   }
 
+  function handleToggleFullscreen() {
+    void boardRef.current?.toggleFullscreen().then(() => {
+      setIsFullscreen(boardRef.current?.isFullscreen ?? false)
+    })
+  }
+
   return (
     <div className="analysis-page">
       <div className="analysis-page__hero">
+        {/* 左：标题 */}
         <div className="analysis-page__hero-left">
-          <Title level={3}>靶点研发进展格局</Title>
-          <p>聚焦单疾病下的靶点进展，把研发阶段折叠为 7 个固定泳道。</p>
+          <Title level={5} style={{ margin: 0, whiteSpace: 'nowrap' }}>靶点研发进展格局</Title>
         </div>
-        <div className="analysis-page__meta">
-          {pipeline.selectedDisease ? <Tag color="blue">{pipeline.selectedDisease}</Tag> : null}
-        </div>
-      </div>
 
-      <Card loading={dictionariesLoading} className="analysis-filter-card">
-        <div className="analysis-filter-bar">
+        {/* 中：筛选栏 */}
+        <div className="analysis-filter-bar analysis-filter-bar--inline">
           <FilterOutlined style={{ color: '#8494b0', flexShrink: 0 }} />
 
           <div className="analysis-filter-bar__item">
-            <span className="analysis-filter-bar__label">疾病筛选</span>
+            <span className="analysis-filter-bar__label">疾病</span>
             <DiseaseSingleSelect
               options={dictionaries?.diseases ?? []}
               value={pipeline.selectedDisease}
@@ -128,7 +122,7 @@ export default function PipelinePage() {
           </div>
 
           <div className="analysis-filter-bar__item">
-            <span className="analysis-filter-bar__label">靶点筛选</span>
+            <span className="analysis-filter-bar__label">靶点</span>
             <TargetMultiSelect
               groups={targetGroups}
               value={pipeline.selectedTargets}
@@ -137,20 +131,48 @@ export default function PipelinePage() {
             />
           </div>
 
-          <div className="analysis-filter-bar__actions">
-            <Button
-              size="small"
-              icon={<ReloadOutlined />}
-              className="analysis-filter-btn"
-              onClick={handleReset}
-            >
-              重置筛选
-            </Button>
-          </div>
+          <Button
+            size="small"
+            icon={<ReloadOutlined />}
+            className="analysis-filter-btn"
+            onClick={handleReset}
+          >
+            重置
+          </Button>
         </div>
-      </Card>
 
-      <PipelineBoard data={data} isLoading={isLoading} />
+        {/* 右：靶点数 + 导出 + 全屏 */}
+        <div className="analysis-page__meta">
+          {pipeline.selectedDisease && (
+            <Tag color="blue">{pipeline.selectedDisease}</Tag>
+          )}
+          <div className="analysis-filter-bar__divider" />
+          <Tooltip title="导出当前泳道数据为 CSV">
+            <Button
+              type="text"
+              size="small"
+              icon={<DownloadOutlined />}
+              className="analysis-action-btn"
+              onClick={() => boardRef.current?.exportCsv()}
+            />
+          </Tooltip>
+          <Tooltip title={isFullscreen ? '退出全屏' : '全屏查看'}>
+            <Button
+              type="text"
+              size="small"
+              icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
+              className="analysis-action-btn"
+              onClick={handleToggleFullscreen}
+            />
+          </Tooltip>
+        </div>
+      </div>
+
+      <PipelineBoard
+        ref={boardRef}
+        data={data}
+        isLoading={isLoading}
+      />
     </div>
   )
 }

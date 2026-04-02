@@ -74,6 +74,25 @@
   white-space: nowrap;
 }
 
+/* ── 图标操作按钮（导出 / 全屏） ── */
+.analysis-action-btn.ant-btn-text {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: #52617c;
+  font-size: 15px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.analysis-action-btn.ant-btn-text:hover {
+  background: rgba(22, 119, 255, 0.08);
+  color: #1677ff;
+}
+
 /* ── 全选行（注入 dropdownRender） ── */
 .filter-select-all-row {
   display: flex;

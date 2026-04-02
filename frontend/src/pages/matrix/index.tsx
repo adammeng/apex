@@ -74,7 +74,7 @@ export default function MatrixPage() {
       <div className="analysis-page__hero">
         {/* 左：标题 */}
         <div className="analysis-page__hero-left">
-          <Title level={4} style={{ margin: 0, whiteSpace: 'nowrap' }}>靶点组合竞争格局</Title>
+          <Title level={5} style={{ margin: 0, whiteSpace: 'nowrap' }}>靶点组合竞争格局</Title>
         </div>
 
         {/* 中：筛选栏 */}
@@ -124,21 +124,21 @@ export default function MatrixPage() {
           <div className="analysis-filter-bar__divider" />
           <Tooltip title="导出当前矩阵为 CSV">
             <Button
+              type="text"
               size="small"
               icon={<DownloadOutlined />}
+              className="analysis-action-btn"
               onClick={() => boardRef.current?.exportCsv()}
-            >
-              导出
-            </Button>
+            />
           </Tooltip>
           <Tooltip title={isFullscreen ? '退出全屏' : '全屏查看'}>
             <Button
+              type="text"
               size="small"
               icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
+              className="analysis-action-btn"
               onClick={handleToggleFullscreen}
-            >
-              {isFullscreen ? '退出全屏' : '全屏'}
-            </Button>
+            />
           </Tooltip>
         </div>
       </div>
