@@ -682,3 +682,179 @@
     flex: 1 1 100%;
   }
 }
+
+/* ═══════════════════════════════════════
+   虚拟化矩阵（vm-*）
+   四区域布局：corner | col-header
+               row-header-col | data
+   ═══════════════════════════════════════ */
+
+/*
+  vm-grid：填满 board 剩余空间，CSS grid 划分四个区域。
+  列宽 / 行高由 JS 内联 style 传入，这里只做弹性布局。
+*/
+.vm-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  /* 列：固定左侧列（JS 设宽）| 剩余数据区 */
+  grid-template-columns: auto 1fr;
+  /* 行：固定表头高（JS 设高）| 剩余数据区 */
+  grid-template-rows: auto 1fr;
+  overflow: hidden;
+}
+
+/* ── 左上角（不滚动） ── */
+.vm-corner {
+  grid-column: 1;
+  grid-row: 1;
+  z-index: 20;
+  background: #f4f8ff;
+  border-right: 2px solid #ccd7ee;
+  border-bottom: 2px solid #ccd7ee;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.vm-corner__row {
+  display: flex;
+}
+
+.vm-corner__cell {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #52617c;
+  border-right: 1px solid #e7edf6;
+  border-bottom: 1px solid #e7edf6;
+  background: #f4f8ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+/* ── 顶部列头（随数据区水平滚动同步，不显示 scrollbar） ── */
+.vm-col-header {
+  grid-column: 2;
+  grid-row: 1;
+  overflow: hidden;  /* 不显示 scrollbar，由 JS 同步 scrollLeft */
+  border-bottom: 2px solid #ccd7ee;
+  background: #f9fbff;
+}
+
+.vm-col-header__cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  border-right: 1px solid #e7edf6;
+  border-bottom: 1px solid #e7edf6;
+  cursor: default;
+  box-sizing: border-box;
+}
+
+.vm-col-header__cell--name {
+  background: #f9fbff;
+  color: #1d2d4b;
+  padding: 0 6px;
+}
+
+.vm-col-header__cell--score {
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
+}
+
+.vm-col-header__cell--score:hover {
+  filter: brightness(1.08);
+  box-shadow: inset 0 0 0 2px rgba(17, 58, 143, 0.35);
+  transform: translateY(-1px);
+  z-index: 2;
+}
+
+/* ── 左侧行头（随数据区垂直滚动同步，不显示 scrollbar） ── */
+.vm-row-header-col {
+  grid-column: 1;
+  grid-row: 2;
+  overflow: hidden;  /* 不显示 scrollbar，由 JS 同步 scrollTop */
+  border-right: 2px solid #ccd7ee;
+  background: #f6f9ff;
+}
+
+.vm-row-header {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1d2d4b;
+  background: #f6f9ff;
+  border-right: 1px solid #e7edf6;
+  border-bottom: 1px solid #edf2f8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+}
+
+.vm-row-phase {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  border-right: 1px solid #e7edf6;
+  border-bottom: 1px solid #edf2f8;
+  cursor: pointer;
+  transition: box-shadow 0.12s ease;
+  box-sizing: border-box;
+}
+
+.vm-row-phase:hover {
+  box-shadow: inset 0 0 0 1px rgba(17, 58, 143, 0.2);
+}
+
+/* ── 数据区（主滚动区） ── */
+.vm-data {
+  grid-column: 2;
+  grid-row: 2;
+  overflow: auto;   /* 主滚动区，scrollbar 在这里 */
+  position: relative;
+  background: #fff;
+}
+
+/* ── 数据格 ── */
+.vm-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  border-right: 1px solid #e7edf6;
+  border-bottom: 1px solid #edf2f8;
+  cursor: pointer;
+  transition: box-shadow 0.12s ease;
+  box-sizing: border-box;
+}
+
+.vm-cell:hover {
+  box-shadow: inset 0 0 0 1px rgba(17, 58, 143, 0.22);
+  z-index: 1;
+}
+
+.vm-cell--diagonal {
+  cursor: default;
+  background: linear-gradient(
+    135deg,
+    rgba(229, 236, 248, 0.9) 0%,
+    rgba(248, 250, 252, 0.9) 100%
+  ) !important;
+}
