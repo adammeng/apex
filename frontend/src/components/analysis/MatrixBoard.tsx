@@ -1,10 +1,10 @@
 import { Button, Empty, Spin, Tooltip } from 'antd'
-import { FullscreenExitOutlined, FullscreenOutlined } from '@ant-design/icons'
+import { DownloadOutlined, FullscreenExitOutlined, FullscreenOutlined } from '@ant-design/icons'
 import { useMemo, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import type { MatrixCell, MatrixQueryResult } from '../../services/analysis'
 import MatrixTooltipCard from './MatrixTooltipCard'
-import { getCellKey, getScoreStyle } from './utils'
+import { buildCsv, downloadCsv, getCellKey, getScoreStyle } from './utils'
 import { useBoardFullscreen } from './useBoardFullscreen'
 
 interface MatrixBoardProps {
@@ -39,6 +39,26 @@ export default function MatrixBoard({
     })
     return map
   }, [data])
+
+  function handleExport() {
+    if (!data) return
+    const header = ['靶点（行）', '最高阶段分', ...data.targets]
+    const rows: string[][] = [header]
+    for (const rowTarget of data.targets) {
+      const singleScore = data.single_max[rowTarget]?.score
+      const row: string[] = [
+        rowTarget,
+        singleScore != null ? singleScore.toFixed(1) : '',
+        ...data.targets.map((colTarget) => {
+          if (rowTarget === colTarget) return '-'
+          const cell = cellMap.get(getCellKey(rowTarget, colTarget))
+          return cell?.score != null ? cell.score.toFixed(1) : ''
+        }),
+      ]
+      rows.push(row)
+    }
+    downloadCsv('靶点组合竞争矩阵.csv', buildCsv(rows))
+  }
 
   function clearCloseTimer() {
     if (closeTimerRef.current) {
@@ -86,6 +106,11 @@ export default function MatrixBoard({
   return (
     <div ref={boardRef} className="analysis-board analysis-board--matrix">
       <div className="analysis-board__toolbar">
+        <Tooltip title="导出当前矩阵为 CSV">
+          <Button size="small" icon={<DownloadOutlined />} onClick={handleExport}>
+            导出
+          </Button>
+        </Tooltip>
         <Tooltip title={isFullscreen ? '退出全屏' : '全屏查看'}>
           <Button
             size="small"

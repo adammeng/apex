@@ -1,5 +1,5 @@
-import { Button, Card, Space, Switch, Tag, Typography } from 'antd'
-import { ReloadOutlined } from '@ant-design/icons'
+import { Button, Card, Space, Tag, Typography } from 'antd'
+import { FilterOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
 import PipelineBoard from '../../components/analysis/PipelineBoard'
@@ -9,13 +9,12 @@ import { metaApi } from '../../services/meta'
 import { useFilterStore } from '../../stores/filter'
 import '../analysis.css'
 
-const { Title, Text } = Typography
+const { Title } = Typography
 
 export default function PipelinePage() {
   const pipeline = useFilterStore((state) => state.pipeline)
   const setPipelineDisease = useFilterStore((state) => state.setPipelineDisease)
   const setPipelineTargets = useFilterStore((state) => state.setPipelineTargets)
-  const setPipelineIncludeCombo = useFilterStore((state) => state.setPipelineIncludeCombo)
   const markPipelineTargetsHydrated = useFilterStore((state) => state.markPipelineTargetsHydrated)
   const resetPipeline = useFilterStore((state) => state.resetPipeline)
 
@@ -82,12 +81,11 @@ export default function PipelinePage() {
   }, [allTargets.length, pipeline.selectedTargets, targetData])
 
   const { data, isLoading } = useQuery({
-    queryKey: ['pipeline-query', pipeline.selectedDisease, targetPayload, pipeline.includeCombo],
+    queryKey: ['pipeline-query', pipeline.selectedDisease, targetPayload],
     queryFn: () =>
       pipelineApi.query({
         disease: pipeline.selectedDisease as string,
         targets: targetPayload,
-        include_combo: pipeline.includeCombo,
       }),
     enabled: !!pipeline.selectedDisease,
   })
@@ -107,22 +105,21 @@ export default function PipelinePage() {
   return (
     <div className="analysis-page">
       <div className="analysis-page__hero">
-        <div>
+        <div className="analysis-page__hero-left">
           <Title level={3}>靶点研发进展格局</Title>
-          <p>
-            聚焦单疾病下的靶点进展，把研发阶段显式折叠为 7 个固定泳道。靶点搜索只做前端模糊匹配，
-            字典接口负责给出疾病列表和按字母分组的靶点选项。
-          </p>
+          <p>聚焦单疾病下的靶点进展，把研发阶段折叠为 7 个固定泳道。</p>
         </div>
         <div className="analysis-page__meta">
           {pipeline.selectedDisease ? <Tag color="blue">{pipeline.selectedDisease}</Tag> : null}
         </div>
       </div>
 
-      <Card loading={dictionariesLoading}>
-        <div className="analysis-filter-grid analysis-filter-grid--pipeline">
-          <div className="analysis-filter-group">
-            <div className="analysis-filter-group__label">疾病</div>
+      <Card loading={dictionariesLoading} className="analysis-filter-card">
+        <div className="analysis-filter-bar">
+          <FilterOutlined style={{ color: '#8494b0', flexShrink: 0 }} />
+
+          <div className="analysis-filter-bar__item">
+            <span className="analysis-filter-bar__label">疾病筛选</span>
             <DiseaseSingleSelect
               options={dictionaries?.diseases ?? []}
               value={pipeline.selectedDisease}
@@ -130,8 +127,8 @@ export default function PipelinePage() {
             />
           </div>
 
-          <div className="analysis-filter-group">
-            <div className="analysis-filter-group__label">靶点</div>
+          <div className="analysis-filter-bar__item">
+            <span className="analysis-filter-bar__label">靶点筛选</span>
             <TargetMultiSelect
               groups={targetGroups}
               value={pipeline.selectedTargets}
@@ -140,22 +137,15 @@ export default function PipelinePage() {
             />
           </div>
 
-          <div className="analysis-filter-side">
-            <div className="analysis-filter-group__label">显示控制</div>
-            <Space direction="vertical" size={12}>
-              <Space>
-                <Switch checked={pipeline.includeCombo} onChange={setPipelineIncludeCombo} />
-                <Text>包含组合靶点</Text>
-              </Space>
-              <div className="analysis-filter-side__actions">
-                <Button icon={<ReloadOutlined />} onClick={handleReset}>
-                  重置
-                </Button>
-              </div>
-              <div className="analysis-hint">
-                切换疾病后会重新加载该疾病下的靶点列表，并默认全选。
-              </div>
-            </Space>
+          <div className="analysis-filter-bar__actions">
+            <Button
+              size="small"
+              icon={<ReloadOutlined />}
+              className="analysis-filter-btn"
+              onClick={handleReset}
+            >
+              重置筛选
+            </Button>
           </div>
         </div>
       </Card>

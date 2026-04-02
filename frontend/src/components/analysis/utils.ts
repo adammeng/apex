@@ -32,3 +32,33 @@ export function getDrugDisplayName(drug: Pick<TooltipDrug, 'drug_name_en' | 'dru
 export function getCellKey(rowTarget: string, colTarget: string) {
   return [rowTarget, colTarget].sort((left, right) => left.localeCompare(right)).join('::')
 }
+
+/** 将二维字符串数组转为 CSV 内容（UTF-8 BOM，兼容 Excel 中文） */
+export function buildCsv(rows: string[][]): string {
+  const csv = rows
+    .map((cols) =>
+      cols
+        .map((cell) => {
+          const str = cell == null ? '' : String(cell)
+          // 包含逗号、引号、换行时用双引号包裹，内部引号转义
+          return str.includes(',') || str.includes('"') || str.includes('\n')
+            ? `"${str.replace(/"/g, '""')}"`
+            : str
+        })
+        .join(',')
+    )
+    .join('\r\n')
+  // UTF-8 BOM 让 Excel 正确识别中文
+  return '\uFEFF' + csv
+}
+
+/** 触发浏览器下载 */
+export function downloadCsv(filename: string, content: string): void {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}

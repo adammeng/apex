@@ -21,8 +21,8 @@ interface AppLayoutProps {
 }
 
 const menuItems = [
-  { key: '/matrix', icon: <TableOutlined />, label: '竞争矩阵' },
-  { key: '/pipeline', icon: <ApartmentOutlined />, label: '研发泳道' },
+  { key: '/matrix', icon: <TableOutlined />, label: '靶点组合竞争格局' },
+  { key: '/pipeline', icon: <ApartmentOutlined />, label: '靶点研发进展格局' },
 ]
 
 export default function AppLayout({ children }: AppLayoutProps) {

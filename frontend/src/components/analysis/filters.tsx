@@ -1,4 +1,4 @@
-import { Button, Select, Space, Tooltip, TreeSelect } from 'antd'
+import { Checkbox, Select, TreeSelect } from 'antd'
 import type { DefaultOptionType } from 'antd/es/select'
 import { useMemo } from 'react'
 import type { DiseaseOption, DiseaseTree, StageItem, TargetGroup } from '../../services/meta'
@@ -28,13 +28,46 @@ interface TargetMultiSelectProps {
   disabled?: boolean
 }
 
-function renderLabel(label: string) {
+// 统一触发器宽度
+const FILTER_WIDTH = 200
+
+function SelectAllRow({
+  allCount,
+  selectedCount,
+  onSelectAll,
+  onClear,
+}: {
+  allCount: number
+  selectedCount: number
+  onSelectAll: () => void
+  onClear: () => void
+}) {
+  const allSelected = selectedCount === allCount && allCount > 0
+  const indeterminate = selectedCount > 0 && selectedCount < allCount
+
   return (
-    <Tooltip title={label}>
-      <span className="analysis-ellipsis">{label}</span>
-    </Tooltip>
+    <div className="filter-select-all-row">
+      <Checkbox
+        indeterminate={indeterminate}
+        checked={allSelected}
+        onChange={() => (allSelected ? onClear() : onSelectAll())}
+      >
+        {allSelected ? '取消全选' : '全选'}
+      </Checkbox>
+    </div>
   )
 }
+
+// ── DiseaseTreeFilter ─────────────────────────────────────────────────────────
+
+function triggerLabel(selectedCount: number, allCount: number, allText = '已全选'): string {
+  if (allCount === 0) return '加载中…'
+  if (selectedCount === allCount) return allText
+  if (selectedCount === 0) return '未选择'
+  return `已选 ${selectedCount} 项`
+}
+
+// ── trigger 显示文本 ──────────────────────────────────────────────────────────
 
 export function DiseaseTreeFilter({ diseaseTree, value, onChange }: DiseaseTreeFilterProps) {
   const allDiseases = useMemo(
@@ -45,85 +78,96 @@ export function DiseaseTreeFilter({ diseaseTree, value, onChange }: DiseaseTreeF
   const treeData = useMemo(
     () =>
       diseaseTree.map((area) => ({
-        title: renderLabel(area.ta),
+        title: area.ta,
         value: `ta::${area.ta}`,
         selectable: false,
         searchText: area.ta,
         children: area.children.map((child) => ({
-          title: renderLabel(child.name),
+          title: child.name,
           value: child.name,
-          searchText: `${area.ta} ${child.name}`
-        }))
+          searchText: `${area.ta} ${child.name}`,
+        })),
       })),
     [diseaseTree]
   )
 
+  const label = triggerLabel(value.length, allDiseases.length)
+
   return (
-    <Space direction="vertical" size={8} style={{ width: '100%' }}>
-      <TreeSelect
-        treeCheckable
-        showSearch
-        allowClear
-        maxTagCount="responsive"
-        value={value}
-        treeData={treeData}
-        treeNodeFilterProp="searchText"
-        placeholder="全部疾病"
-        style={{ width: '100%' }}
-        dropdownStyle={{ maxHeight: 420, overflow: 'auto' }}
-        onChange={(nextValue) => {
-          const selected = (nextValue as string[]).filter((item) => allDiseases.includes(item))
-          onChange(selected)
-        }}
-      />
-      <Space size={8}>
-        <Button size="small" onClick={() => onChange(allDiseases)}>
-          全选
-        </Button>
-        <Button size="small" onClick={() => onChange([])}>
-          清空
-        </Button>
-      </Space>
-    </Space>
+    <TreeSelect
+      treeCheckable
+      showSearch
+      allowClear={false}
+      maxTagCount={0}
+      maxTagPlaceholder={() => label}
+      value={value}
+      treeData={treeData}
+      treeNodeFilterProp="searchText"
+      placeholder="选择疾病"
+      style={{ width: FILTER_WIDTH }}
+      dropdownStyle={{ maxHeight: 420, overflow: 'auto', minWidth: 320 }}
+      dropdownRender={(menu) => (
+        <>
+          <SelectAllRow
+            allCount={allDiseases.length}
+            selectedCount={value.length}
+            onSelectAll={() => onChange(allDiseases)}
+            onClear={() => onChange([])}
+          />
+          {menu}
+        </>
+      )}
+      onChange={(nextValue) => {
+        const selected = (nextValue as string[]).filter((item) => allDiseases.includes(item))
+        onChange(selected)
+      }}
+    />
   )
 }
+
+// ── StageFilter ───────────────────────────────────────────────────────────────
 
 export function StageFilter({ stages, value, onChange }: StageFilterProps) {
   const options = useMemo(
     () =>
       stages.map((stage) => ({
-        label: `${stage.matrix} (${stage.score.toFixed(1)})`,
-        value: stage.value
+        label: stage.matrix,
+        value: stage.value,
       })),
     [stages]
   )
 
   const allValues = useMemo(() => stages.map((stage) => stage.value), [stages])
+  const label = triggerLabel(value.length, allValues.length, '全部阶段')
 
   return (
-    <Space direction="vertical" size={8} style={{ width: '100%' }}>
-      <Select
-        mode="multiple"
-        allowClear
-        maxTagCount="responsive"
-        placeholder="全部阶段"
-        style={{ width: '100%' }}
-        options={options}
-        value={value}
-        optionFilterProp="label"
-        onChange={onChange}
-      />
-      <Space size={8}>
-        <Button size="small" onClick={() => onChange(allValues)}>
-          全选
-        </Button>
-        <Button size="small" onClick={() => onChange([])}>
-          清空
-        </Button>
-      </Space>
-    </Space>
+    <Select
+      mode="multiple"
+      allowClear={false}
+      maxTagCount={0}
+      maxTagPlaceholder={() => label}
+      placeholder="选择阶段"
+      style={{ width: FILTER_WIDTH }}
+      options={options}
+      value={value}
+      optionFilterProp="label"
+      onChange={onChange}
+      dropdownRender={(menu) => (
+        <>
+          <SelectAllRow
+            allCount={allValues.length}
+            selectedCount={value.length}
+            onSelectAll={() => onChange(allValues)}
+            onClear={() => onChange([])}
+          />
+          {menu}
+        </>
+      )}
+    />
   )
 }
+
+// ── DiseaseSingleSelect ───────────────────────────────────────────────────────
 
 export function DiseaseSingleSelect({
   options,
@@ -133,8 +177,9 @@ export function DiseaseSingleSelect({
   const selectOptions = useMemo(
     () =>
       options.map((item) => ({
-        label: `${item.name} · ${item.ta}`,
-        value: item.name
+        label: `${item.name}`,
+        filterLabel: `${item.name} ${item.ta}`,
+        value: item.name,
       })),
     [options]
   )
@@ -144,13 +189,15 @@ export function DiseaseSingleSelect({
       showSearch
       value={value}
       placeholder="请选择疾病"
-      style={{ width: '100%' }}
+      style={{ width: FILTER_WIDTH }}
       options={selectOptions}
-      optionFilterProp="label"
+      optionFilterProp="filterLabel"
       onChange={onChange}
     />
   )
 }
+
+// ── TargetMultiSelect ─────────────────────────────────────────────────────────
 
 export function TargetMultiSelect({
   groups,
@@ -164,37 +211,40 @@ export function TargetMultiSelect({
         label: group.key,
         options: group.targets.map((target) => ({
           label: target,
-          value: target
-        }))
+          value: target,
+        })),
       })),
     [groups]
   )
 
   const allTargets = useMemo(() => groups.flatMap((group) => group.targets), [groups])
+  const label = triggerLabel(value.length, allTargets.length)
 
   return (
-    <Space direction="vertical" size={8} style={{ width: '100%' }}>
-      <Select
-        mode="multiple"
-        allowClear
-        maxTagCount="responsive"
-        showSearch
-        disabled={disabled}
-        value={value}
-        placeholder="请选择靶点"
-        style={{ width: '100%' }}
-        options={options}
-        optionFilterProp="label"
-        onChange={onChange}
-      />
-      <Space size={8}>
-        <Button size="small" disabled={disabled} onClick={() => onChange(allTargets)}>
-          全选
-        </Button>
-        <Button size="small" disabled={disabled} onClick={() => onChange([])}>
-          清空
-        </Button>
-      </Space>
-    </Space>
+    <Select
+      mode="multiple"
+      allowClear={false}
+      maxTagCount={0}
+      maxTagPlaceholder={() => label}
+      showSearch
+      disabled={disabled}
+      value={value}
+      placeholder="请选择靶点"
+      style={{ width: FILTER_WIDTH }}
+      options={options}
+      optionFilterProp="label"
+      onChange={onChange}
+      dropdownRender={(menu) => (
+        <>
+          <SelectAllRow
+            allCount={allTargets.length}
+            selectedCount={value.length}
+            onSelectAll={() => onChange(allTargets)}
+            onClear={() => onChange([])}
+          />
+          {menu}
+        </>
+      )}
+    />
   )
 }

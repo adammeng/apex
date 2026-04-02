@@ -1,5 +1,5 @@
 import { Button, Card, Space, Switch, Tag, Typography } from 'antd'
-import { ReloadOutlined } from '@ant-design/icons'
+import { FilterOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
 import MatrixBoard from '../../components/analysis/MatrixBoard'
@@ -66,23 +66,26 @@ export default function MatrixPage() {
   return (
     <div className="analysis-page">
       <div className="analysis-page__hero">
-        <div>
+        <div className="analysis-page__hero-left">
           <Title level={3}>靶点组合竞争格局</Title>
-          <p>
-            以疾病维度筛选最新临床记录，按靶点最高研发阶段生成组合热力矩阵。悬浮任一分值格会单独请求
-            tooltip 明细，不和主 query 混在一起。
-          </p>
+          <p>以疾病维度筛选最新临床记录，按靶点最高研发阶段生成组合热力矩阵。</p>
         </div>
         <div className="analysis-page__meta">
-          {data?.available_target_total ? <Tag color="geekblue">靶点数 {data.available_target_total}</Tag> : null}
-          {data?.targets?.length ? <Tag color="cyan">当前展示 {data.targets.length}</Tag> : null}
+          {data?.available_target_total != null && (
+            <Tag color="geekblue">靶点数 {data.available_target_total}</Tag>
+          )}
+          {data?.targets?.length != null && (
+            <Tag color="cyan">当前展示 {data.targets.length}</Tag>
+          )}
         </div>
       </div>
 
-      <Card loading={dictionariesLoading}>
-        <div className="analysis-filter-grid">
-          <div className="analysis-filter-group">
-            <div className="analysis-filter-group__label">疾病筛选</div>
+      <Card loading={dictionariesLoading} className="analysis-filter-card">
+        <div className="analysis-filter-bar">
+          <FilterOutlined style={{ color: '#8494b0', flexShrink: 0 }} />
+
+          <div className="analysis-filter-bar__item">
+            <span className="analysis-filter-bar__label">疾病筛选</span>
             <DiseaseTreeFilter
               diseaseTree={dictionaries?.disease_tree ?? []}
               value={matrix.selectedDiseases}
@@ -90,8 +93,8 @@ export default function MatrixPage() {
             />
           </div>
 
-          <div className="analysis-filter-group">
-            <div className="analysis-filter-group__label">研发阶段</div>
+          <div className="analysis-filter-bar__item">
+            <span className="analysis-filter-bar__label">研发阶段</span>
             <StageFilter
               stages={dictionaries?.stages ?? []}
               value={matrix.selectedStages}
@@ -99,23 +102,25 @@ export default function MatrixPage() {
             />
           </div>
 
-          <div className="analysis-filter-side">
-            <div className="analysis-filter-group__label">显示控制</div>
-            <Space direction="vertical" size={12}>
-              <Space>
-                <Switch checked={matrix.hideNoCombo} onChange={setMatrixHideNoCombo} />
-                <Text>隐藏无组合的靶点</Text>
-              </Space>
-              <div className="analysis-filter-side__actions">
-                <Button icon={<ReloadOutlined />} onClick={handleReset}>
-                  重置
-                </Button>
-              </div>
-              <div className="analysis-hint">
-                当前按最高研发阶段排序，默认展示当前筛选条件下的 Top 40 靶点。
-              </div>
-            </Space>
+          <div className="analysis-filter-bar__actions">
+            <Button
+              size="small"
+              icon={<ReloadOutlined />}
+              className="analysis-filter-btn"
+              onClick={handleReset}
+            >
+              重置筛选
+            </Button>
           </div>
+
+          <div style={{ flex: 1 }} />
+
+          <div className="analysis-filter-bar__divider" />
+
+          <Space size={6}>
+            <Switch size="small" checked={matrix.hideNoCombo} onChange={setMatrixHideNoCombo} />
+            <Text style={{ whiteSpace: 'nowrap', fontSize: 13, color: '#52617c' }}>隐藏无组合的靶点</Text>
+          </Space>
         </div>
       </Card>
 

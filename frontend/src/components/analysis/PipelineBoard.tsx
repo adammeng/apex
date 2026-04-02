@@ -1,8 +1,8 @@
 import { Button, Empty, Spin, Tag, Tooltip } from 'antd'
-import { FullscreenExitOutlined, FullscreenOutlined } from '@ant-design/icons'
+import { DownloadOutlined, FullscreenExitOutlined, FullscreenOutlined } from '@ant-design/icons'
 import React, { useRef } from 'react'
 import type { PipelineQueryResult, TooltipDrug } from '../../services/analysis'
-import { getDrugDisplayName, getScoreStyle } from './utils'
+import { buildCsv, downloadCsv, getDrugDisplayName, getScoreStyle } from './utils'
 import { useBoardFullscreen } from './useBoardFullscreen'
 
 interface PipelineBoardProps {
@@ -33,6 +33,36 @@ export default function PipelineBoard({ data, isLoading }: PipelineBoardProps) {
   const boardRef = useRef<HTMLDivElement | null>(null)
   const { isFullscreen, toggleFullscreen } = useBoardFullscreen(boardRef)
 
+  function handleExport() {
+    if (!data) return
+    const header = [
+      '疾病', '靶点', '泳道（阶段）', '药物名（英）', '药物名（中）',
+      '研发阶段', '阶段分值', '原研机构', '研究机构', 'NCT ID', '试验日期', '是否组合靶点',
+    ]
+    const rows: string[][] = [header]
+    for (const row of data.rows) {
+      for (const lane of data.lanes) {
+        for (const drug of row.cells[lane] ?? []) {
+          rows.push([
+            data.disease,
+            row.target,
+            lane,
+            drug.drug_name_en ?? '',
+            drug.drug_name_cn ?? '',
+            drug.stage_value ?? '',
+            drug.score != null ? drug.score.toFixed(1) : '',
+            drug.originator ?? '',
+            drug.research_institute ?? '',
+            drug.nct_id ?? '',
+            drug.highest_trial_date ?? '',
+            drug.is_combo ? '是' : '否',
+          ])
+        }
+      }
+    }
+    downloadCsv(`靶点研发进展格局_${data.disease}.csv`, buildCsv(rows))
+  }
+
   if (isLoading) {
     return (
       <div className="analysis-loading">
@@ -54,6 +84,11 @@ export default function PipelineBoard({ data, isLoading }: PipelineBoardProps) {
   return (
     <div ref={boardRef} className="analysis-board analysis-board--pipeline">
       <div className="analysis-board__toolbar">
+        <Tooltip title="导出当前泳道数据为 CSV">
+          <Button size="small" icon={<DownloadOutlined />} onClick={handleExport}>
+            导出
+          </Button>
+        </Tooltip>
         <Tooltip title={isFullscreen ? '退出全屏' : '全屏查看'}>
           <Button
             size="small"
