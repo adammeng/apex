@@ -710,8 +710,8 @@
   grid-row: 1;
   z-index: 20;
   background: #f4f8ff;
-  border-right: 2px solid #ccd7ee;
-  border-bottom: 2px solid #ccd7ee;
+  border-right: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -742,7 +742,7 @@
   grid-column: 2;
   grid-row: 1;
   overflow: hidden;  /* 不显示 scrollbar，由 JS 同步 scrollLeft */
-  border-bottom: 2px solid #ccd7ee;
+  border-bottom: 1px solid #e2e8f0;
   background: #f9fbff;
 }
 
@@ -785,7 +785,7 @@
   grid-column: 1;
   grid-row: 2;
   overflow: hidden;  /* 不显示 scrollbar，由 JS 同步 scrollTop */
-  border-right: 2px solid #ccd7ee;
+  border-right: 1px solid #e2e8f0;
   background: #f6f9ff;
 }
 
@@ -814,12 +814,17 @@
   border-right: 1px solid #e7edf6;
   border-bottom: 1px solid #edf2f8;
   cursor: pointer;
-  transition: box-shadow 0.12s ease;
+  transition: filter 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
   box-sizing: border-box;
+  position: relative;
+  z-index: 0;
 }
 
 .vm-row-phase:hover {
-  box-shadow: inset 0 0 0 1px rgba(17, 58, 143, 0.2);
+  filter: brightness(1.08);
+  box-shadow: inset 0 0 0 2px rgba(17, 58, 143, 0.35);
+  transform: translateX(-1px);
+  z-index: 2;
 }
 
 /* ── 数据区（主滚动区） ── */
