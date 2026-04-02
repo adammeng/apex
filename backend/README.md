@@ -15,10 +15,12 @@
 | 元数据接口（疾病树 / 靶点 / 阶段） | `app/routers/meta.py` | 已完成 |
 | APScheduler 定时任务骨架 | `app/tasks/scheduler.py` | 已完成 |
 | OSS 同步流程 | `app/tasks/oss_sync.py` | 已完成（骨架）|
-| 飞书 OAuth 完整登录 | `app/routers/auth.py` | 待实现 |
-| 竞争矩阵查询 | `app/routers/matrix.py` | 待实现（接口占位） |
-| 研发泳道查询 | `app/routers/pipeline.py` | 待实现（接口占位） |
-| 导出任务 | `app/routers/export.py` | 待实现（接口占位） |
+| 飞书 OAuth 完整登录 | `app/routers/auth.py` | 已完成 |
+| 竞争矩阵查询（`/matrix/query`、`/matrix/tooltip`、`/matrix/export`） | `app/routers/matrix.py` | 已完成 |
+| 研发泳道查询（`/pipeline/query`、`/pipeline/export`） | `app/routers/pipeline.py` | 已完成 |
+| 业务查询核心逻辑 | `app/services/analysis.py` | 已完成 |
+| Excel 导出服务 | `app/services/excel_export.py` | 已完成 |
+| 导出任务（`/export/jobs`、`/export/jobs/{id}/download`） | `app/routers/export.py` | 待实现（接口占位） |
 | 数据库迁移（建表） | `alembic/versions/001_sync_tables` | 已完成 |
 
 ## 技术栈
@@ -182,9 +184,11 @@ brew services stop redis
 
 | 方法 | 路径 | 说明 | 状态 |
 |------|------|------|------|
-| POST | `/matrix/query` | 竞争矩阵主查询 | 待实现（占位） |
-| POST | `/matrix/tooltip` | 矩阵单格详情 | 待实现（占位） |
-| POST | `/pipeline/query` | 研发泳道查询 | 待实现（占位） |
+| POST | `/matrix/query` | 竞争矩阵主查询 | 已完成 |
+| POST | `/matrix/tooltip` | 矩阵单格详情 | 已完成 |
+| GET  | `/matrix/export` | 矩阵 Excel 导出 | 已完成 |
+| POST | `/pipeline/query` | 研发泳道查询 | 已完成 |
+| GET  | `/pipeline/export` | 泳道 Excel 导出 | 已完成 |
 | GET  | `/export/jobs` | 导出任务列表 | 待实现（占位） |
 | GET  | `/export/jobs/{id}/download` | 下载导出文件 | 待实现（占位） |
 

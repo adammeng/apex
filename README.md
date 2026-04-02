@@ -15,23 +15,24 @@
 | 健康检查 `/api/system/health` | 已完成 |
 | 元数据接口（疾病树 / 靶点 / 阶段枚举） | 已完成 |
 | APScheduler 每日定时同步骨架 | 已完成 |
-| 飞书 OAuth 完整登录流程 | 待实现 |
-| 竞争矩阵查询（`/matrix/query`, `/matrix/tooltip`） | 待实现（接口占位） |
-| 研发泳道查询（`/pipeline/query`） | 待实现（接口占位） |
-| 导出功能（`/export/jobs`） | 待实现（接口占位） |
+| 飞书 OAuth 完整登录流程 | 已完成 |
+| 竞争矩阵查询（`/matrix/query`、`/matrix/tooltip`、`/matrix/export`） | 已完成 |
+| 研发泳道查询（`/pipeline/query`、`/pipeline/export`） | 已完成 |
+| Excel 导出服务（`services/excel_export.py`） | 已完成 |
+| 导出任务管理（`/export/jobs`、`/export/jobs/{id}/download`） | 待实现（接口占位） |
 
 ### 前端（`frontend/`）
 
 | 模块 | 状态 |
 | --- | --- |
 | 基础布局（左侧导航 + 顶部栏） | 已完成 |
-| 四页路由（总览 / 矩阵 / 泳道 / 竞争格局） | 已完成 |
 | 统一请求实例（Axios + JWT + 401 跳转） | 已完成 |
 | Zustand 鉴权 & 筛选状态 | 已完成 |
-| 数据总览页面（真实数据渲染） | 待实现（静态占位） |
-| 竞争矩阵页面 | 待实现（静态占位） |
-| 研发泳道页面 | 待实现（静态占位） |
-| 竞争格局页面 | 待实现（静态占位） |
+| 竞争矩阵页面（真实数据渲染，含筛选、tooltip、导出） | 已完成 |
+| 研发泳道页面（真实数据渲染，含筛选、导出） | 已完成 |
+| 分析组件库（MatrixBoard、PipelineBoard、filters） | 已完成 |
+| 数据总览页面 | 待实现 |
+| 竞争格局页面 | 待实现 |
 
 ### 本地开发环境
 
@@ -117,9 +118,10 @@ uvicorn app.main:app --reload
 - 后端说明：`backend/README.md`
 - 整体架构：`架构/Apex整体技术架构实现方案.md`
 - 飞书登录流程：`架构/飞书登录流程.md`
+- 前端 Table 性能优化：`frontend/docs/table-performance.md`
 
 ## 说明
 
 - UI 语言默认使用中文
 - parquet 原始数据不入库，通常不提交到 Git
-- 当前仓库仍处于快速迭代阶段，部分接口和页面为占位实现
+- 当前仓库仍处于快速迭代阶段，导出任务管理模块与总览、竞争格局页面尚未实现

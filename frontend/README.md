@@ -22,20 +22,24 @@
 | Axios 请求实例（JWT 注入 + 401 跳转） | `src/services/request.ts` | 已完成 |
 | 鉴权 API 封装 | `src/services/auth.ts` | 已完成 |
 | 元数据 API 封装 | `src/services/meta.ts` | 已完成 |
-| 业务分析 API 封装 | `src/services/analysis.ts` | 已完成（占位） |
+| 业务分析 API 封装 | `src/services/analysis.ts` | 已完成 |
 | Zustand 鉴权状态 | `src/stores/auth.ts` | 已完成 |
 | Zustand 筛选状态 | `src/stores/filter.ts` | 已完成 |
-| 数据总览页 | `src/pages/dashboard/index.tsx` | 静态占位，待联调 |
-| 竞争矩阵页 | `src/pages/matrix/index.tsx` | 静态占位，待实现 |
-| 研发泳道页 | `src/pages/pipeline/index.tsx` | 静态占位，待实现 |
-| 竞争格局页 | `src/pages/competition/index.tsx` | 静态占位，待实现 |
+| 竞争矩阵页面（真实数据渲染） | `src/pages/matrix/index.tsx` | 已完成 |
+| 研发泳道页面（真实数据渲染） | `src/pages/pipeline/index.tsx` | 已完成 |
+| 分析组件：MatrixBoard | `src/components/analysis/MatrixBoard.tsx` | 已完成 |
+| 分析组件：PipelineBoard | `src/components/analysis/PipelineBoard.tsx` | 已完成 |
+| 分析组件：MatrixTooltipCard | `src/components/analysis/MatrixTooltipCard.tsx` | 已完成 |
+| 分析组件：filters | `src/components/analysis/filters.tsx` | 已完成 |
+| 数据总览页 | `src/pages/dashboard/index.tsx` | 待实现 |
+| 竞争格局页 | `src/pages/competition/index.tsx` | 待实现 |
 
 ## 后续重点
 
-- 补齐各模块真实数据渲染（从 `/api/meta`、`/api/matrix`、`/api/pipeline` 拉取）
-- 接入飞书登录态
-- 完善筛选、详情、导出等交互
-- 优化图表与大表格性能
+- 实现数据总览页面（关键指标卡片、分布图、近期更新）
+- 实现竞争格局页面（公司对比、治疗领域竞争地图）
+- 对接导出任务管理接口（`/export/jobs`）
+- 完善飞书登录态接入
 
 ## 环境变量
 
@@ -88,12 +92,18 @@ npm run lint
 
 ```text
 frontend/
+├── docs/                # 前端专项文档
+│   └── table-performance.md   # Table 性能优化方案
 ├── public/              # 静态资源
 ├── src/
 │   ├── components/      # 布局与通用组件
+│   │   └── analysis/    # 分析类可视化组件（MatrixBoard、PipelineBoard 等）
 │   ├── pages/           # 页面级组件
+│   │   ├── matrix/      # 竞争矩阵页
+│   │   └── pipeline/    # 研发泳道页
 │   ├── services/        # API 请求封装
 │   ├── stores/          # Zustand 状态管理
+│   ├── utils/           # 工具函数
 │   ├── assets/          # 前端资源
 │   ├── App.tsx          # 路由与全局 Provider
 │   └── main.tsx         # 应用入口
@@ -109,9 +119,8 @@ frontend/
 - 请求超时时间当前为 15 秒
 - 遇到 `401` 时会清除本地 token 并跳转 `/login`
 
-## 后续重点
+## 文档
 
-- 补齐各模块真实数据渲染（从 `/api/meta`、`/api/matrix`、`/api/pipeline` 拉取）
-- 接入飞书登录态
-- 完善筛选、详情、导出等交互
-- 优化图表与大表格性能
+| 文档 | 说明 |
+| --- | --- |
+| `docs/table-performance.md` | Table 大数据量性能优化方案（分页、虚拟滚动、减少重渲染等） |

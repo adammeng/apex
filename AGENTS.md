@@ -163,24 +163,24 @@ commit message 格式：`<type>: <描述>`，描述使用中文。type 取值如
    - [x] MySQL 建库建表（Alembic 迁移 001_sync_tables）
    - [x] 健康检查、元数据接口（疾病树 / 靶点 / 阶段枚举）
    - [x] APScheduler 定时同步骨架
-   - [ ] 飞书 OAuth 完整登录流程
-   - [ ] 竞争矩阵查询（/matrix/query, /matrix/tooltip）
-   - [ ] 研发泳道查询（/pipeline/query）
-   - [ ] 导出功能（/export/jobs, /export/jobs/{id}/download）
+   - [x] 飞书 OAuth 完整登录流程（`/auth/feishu/code2token`、`/auth/me`）
+   - [x] 竞争矩阵查询（`/matrix/query`、`/matrix/tooltip`、`/matrix/export`）
+   - [x] 研发泳道查询（`/pipeline/query`、`/pipeline/export`）
+   - [x] Excel 导出服务（`services/excel_export.py`）
+   - [ ] 导出任务管理（`/export/jobs`、`/export/jobs/{id}/download`，仍为占位）
 3. [x] 前端搭建（React + 路由 + 基础布局）
-   - [x] 四页路由：/ 总览 / /matrix 竞争矩阵 / /pipeline 泳道 / /competition 竞争格局
    - [x] AppLayout（左侧导航 + 顶部栏）
    - [x] 统一请求实例（Axios + JWT 注入 + 401 跳转）
    - [x] Zustand 鉴权 & 筛选状态
-   - [ ] 数据总览模块（真实数据渲染）
-   - [ ] 竞争矩阵模块
-   - [ ] 研发泳道模块
-   - [ ] 竞争格局模块
+   - [x] 竞争矩阵页面（真实数据渲染，含筛选、矩阵展示、tooltip、导出）
+   - [x] 研发泳道页面（真实数据渲染，含筛选、泳道展示、导出）
+   - [x] 分析组件库（MatrixBoard、PipelineBoard、filters、MatrixTooltipCard）
+   - [ ] 数据总览页面（待实现）
+   - [ ] 竞争格局页面（待实现）
 4. [ ] 数据总览模块（前后端联调）
-5. [ ] 药物管线分析模块
-6. [ ] 临床试验分析模块
-7. [ ] 竞争格局分析模块
-8. [ ] 联调 & 测试
+5. [ ] 竞争格局分析模块
+6. [ ] 导出任务管理（后端完整实现 + 前端对接）
+7. [ ] 联调 & 测试
 
 ## 已知问题
 
