@@ -19,6 +19,7 @@ STAGE_ITEMS = [
 ]
 
 STAGE_SCORE_MAP = {item["value"]: item["score"] for item in STAGE_ITEMS}
+MATRIX_STAGE_MAP = {item["value"]: item["matrix"] for item in STAGE_ITEMS}
 PIPELINE_STAGE_MAP = {item["value"]: item["pipeline"] for item in STAGE_ITEMS}
 PIPELINE_LANES = ["PreC", "IND", "Phase 1", "Phase 2", "Phase 3", "BLA", "Market"]
 INVALID_TARGETS = {"", "NOT AVAILABLE", "N/A", "NA", "UNKNOWN"}

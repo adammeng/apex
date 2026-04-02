@@ -1,4 +1,4 @@
-import { Button, Space, Switch, Tag, Tooltip, Typography } from 'antd'
+import { Button, Space, Switch, Tooltip, Typography, message } from 'antd'
 import { DownloadOutlined, FilterOutlined, FullscreenExitOutlined, FullscreenOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -10,7 +10,7 @@ import { metaApi } from '../../services/meta'
 import { useFilterStore } from '../../stores/filter'
 import '../analysis.css'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
 export default function MatrixPage() {
   const matrix = useFilterStore((state) => state.matrix)
@@ -51,6 +51,7 @@ export default function MatrixPage() {
       matrixApi.query({
         diseases: matrix.selectedDiseases,
         stages: matrix.selectedStages,
+        top_n: 40,
         hide_no_combo: matrix.hideNoCombo,
       }),
     enabled: matrix.selectedDiseases.length > 0 && matrix.selectedStages.length > 0,
@@ -69,13 +70,22 @@ export default function MatrixPage() {
     })
   }
 
+  async function handleExport() {
+    try {
+      await matrixApi.exportExcel({
+        diseases: matrix.selectedDiseases,
+        stages: matrix.selectedStages,
+        top_n: 40,
+        hide_no_combo: matrix.hideNoCombo,
+      })
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '导出失败')
+    }
+  }
+
   return (
     <div className="analysis-page">
       <div className="analysis-page__hero">
-        {/* 左：标题 */}
-        <div className="analysis-page__hero-left">
-          <Title level={5} style={{ margin: 0, whiteSpace: 'nowrap' }}>靶点组合竞争格局</Title>
-        </div>
 
         {/* 中：筛选栏 */}
         <div className="analysis-filter-bar analysis-filter-bar--inline">
@@ -116,19 +126,15 @@ export default function MatrixPage() {
           </Space>
         </div>
 
-        {/* 右：靶点数 + 导出 + 全屏 */}
+        {/* 右：导出 + 全屏 */}
         <div className="analysis-page__meta">
-          {data?.available_target_total != null && (
-            <Tag color="geekblue">靶点数 {data.available_target_total}</Tag>
-          )}
-          <div className="analysis-filter-bar__divider" />
-          <Tooltip title="导出当前矩阵为 CSV">
+          <Tooltip title="导出当前矩阵为 Excel">
             <Button
               type="text"
               size="small"
               icon={<DownloadOutlined />}
               className="analysis-action-btn"
-              onClick={() => boardRef.current?.exportCsv()}
+              onClick={() => void handleExport()}
             />
           </Tooltip>
           <Tooltip title={isFullscreen ? '退出全屏' : '全屏查看'}>
@@ -149,6 +155,7 @@ export default function MatrixPage() {
         isLoading={isLoading}
         diseases={matrix.selectedDiseases}
         stages={matrix.selectedStages}
+        total={data?.available_target_total}
       />
     </div>
   )

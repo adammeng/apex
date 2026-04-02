@@ -84,6 +84,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
             onClick={() => setCollapsed((value) => !value)}
             aria-label={collapsed ? '展开菜单' : '折叠菜单'}
           />
+          {/* 当前页面标题 */}
+          <span style={{ fontSize: 13, color: '#8a96a8', fontWeight: 500, letterSpacing: '0.01em' }}>
+            {menuItems.find((item) => item.key === location.pathname)?.label ?? ''}
+          </span>
           <div style={{ flex: 1 }} />
           {syncedAt ? <Tag color="blue">系统同步至 {syncedAt}</Tag> : null}
           {user && (

@@ -1,4 +1,4 @@
-import { Button, Space, Switch, Tag, Tooltip, Typography } from 'antd'
+import { Button, Tooltip, message } from 'antd'
 import { DownloadOutlined, FilterOutlined, FullscreenExitOutlined, FullscreenOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -9,8 +9,6 @@ import { pipelineApi } from '../../services/analysis'
 import { metaApi } from '../../services/meta'
 import { useFilterStore } from '../../stores/filter'
 import '../analysis.css'
-
-const { Title } = Typography
 
 export default function PipelinePage() {
   const pipeline = useFilterStore((state) => state.pipeline)
@@ -100,14 +98,25 @@ export default function PipelinePage() {
     })
   }
 
+  async function handleExport() {
+    if (!pipeline.selectedDisease) {
+      message.warning('请先选择疾病')
+      return
+    }
+
+    try {
+      await pipelineApi.exportExcel({
+        disease: pipeline.selectedDisease,
+        targets: targetPayload,
+      })
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '导出失败')
+    }
+  }
+
   return (
     <div className="analysis-page">
       <div className="analysis-page__hero">
-        {/* 左：标题 */}
-        <div className="analysis-page__hero-left">
-          <Title level={5} style={{ margin: 0, whiteSpace: 'nowrap' }}>靶点研发进展格局</Title>
-        </div>
-
         {/* 中：筛选栏 */}
         <div className="analysis-filter-bar analysis-filter-bar--inline">
           <FilterOutlined style={{ color: '#8494b0', flexShrink: 0 }} />
@@ -141,19 +150,16 @@ export default function PipelinePage() {
           </Button>
         </div>
 
-        {/* 右：靶点数 + 导出 + 全屏 */}
+        {/* 右：导出 + 全屏 */}
         <div className="analysis-page__meta">
-          {pipeline.selectedDisease && (
-            <Tag color="blue">{pipeline.selectedDisease}</Tag>
-          )}
           <div className="analysis-filter-bar__divider" />
-          <Tooltip title="导出当前泳道数据为 CSV">
+          <Tooltip title="导出当前泳道数据为 Excel">
             <Button
               type="text"
               size="small"
               icon={<DownloadOutlined />}
               className="analysis-action-btn"
-              onClick={() => boardRef.current?.exportCsv()}
+              onClick={() => void handleExport()}
             />
           </Tooltip>
           <Tooltip title={isFullscreen ? '退出全屏' : '全屏查看'}>
@@ -172,6 +178,7 @@ export default function PipelinePage() {
         ref={boardRef}
         data={data}
         isLoading={isLoading}
+        total={data?.rows.length}
       />
     </div>
   )

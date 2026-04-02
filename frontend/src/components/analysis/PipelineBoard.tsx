@@ -14,6 +14,7 @@ export interface PipelineBoardHandle {
 interface PipelineBoardProps {
   data?: PipelineQueryResult
   isLoading: boolean
+  total?: number
 }
 
 function PipelineDrugCard({ drug }: { drug: TooltipDrug }) {
@@ -36,7 +37,7 @@ function PipelineDrugCard({ drug }: { drug: TooltipDrug }) {
 }
 
 const PipelineBoard = forwardRef<PipelineBoardHandle, PipelineBoardProps>(function PipelineBoard(
-  { data, isLoading },
+  { data, isLoading, total },
   ref
 ) {
   const boardRef = useRef<HTMLDivElement | null>(null)
@@ -96,6 +97,8 @@ const PipelineBoard = forwardRef<PipelineBoardHandle, PipelineBoardProps>(functi
 
   const laneCount = data.lanes.length
 
+  const rowTotal = total ?? data?.rows.length
+
   return (
     <div ref={boardRef} className="analysis-board analysis-board--pipeline">
       <div className="pipeline-scroll">
@@ -139,6 +142,12 @@ const PipelineBoard = forwardRef<PipelineBoardHandle, PipelineBoardProps>(functi
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="analysis-legend">
+        <div className="analysis-legend__items" />
+        {rowTotal != null && (
+          <span className="analysis-legend__total">靶点数 {rowTotal}</span>
+        )}
       </div>
     </div>
   )

@@ -2,7 +2,8 @@
 
 from typing import List, Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 from ..core.redis_client import cache_get, cache_set, make_cache_key
@@ -12,6 +13,11 @@ from ..services.analysis import (
     compute_matrix,
     compute_tooltip,
     fetch_filtered_records,
+)
+from ..services.excel_export import (
+    build_excel_bytes,
+    build_export_filename,
+    build_matrix_export_rows,
 )
 
 router = APIRouter(prefix="/matrix", tags=["竞争矩阵"])
@@ -96,5 +102,33 @@ async def matrix_tooltip(params: TooltipParams):
 
 
 @router.get("/export", summary="矩阵结果导出（Excel）")
-async def matrix_export():
-    return ApiResponse.ok(data={"msg": "TODO: 矩阵导出待实现"})
+async def matrix_export(
+    diseases: Optional[List[str]] = Query(default=None),
+    ta: Optional[str] = None,
+    stages: Optional[List[str]] = Query(default=None),
+    min_stage_score: Optional[float] = None,
+    targets: Optional[List[str]] = Query(default=None),
+    top_n: Optional[int] = None,
+    hide_no_combo: bool = False,
+):
+    stage_filter = normalize_stage_filter(stages, min_stage_score)
+    records = fetch_filtered_records(
+        diseases=diseases,
+        ta=ta,
+        stages=stage_filter,
+        require_targets=True,
+    )
+    rows = build_matrix_export_rows(
+        records,
+        selected_targets=targets,
+        top_n=top_n,
+        hide_no_combo=hide_no_combo,
+    )
+    content = build_excel_bytes(rows)
+    filename = build_export_filename("matrix")
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+    return Response(
+        content=content,
+        headers=headers,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )

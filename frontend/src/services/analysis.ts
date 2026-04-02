@@ -82,6 +82,69 @@ export interface PipelineQueryResult {
   data_version: string | null
 }
 
+interface PipelineQueryParams {
+  disease: string
+  targets?: string[]
+  include_combo?: boolean
+}
+
+function buildQueryString(params: object) {
+  const searchParams = new URLSearchParams()
+
+  Object.entries(params as Record<string, unknown>).forEach(([key, value]) => {
+    if (value == null) {
+      return
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach((item) => {
+        if (item != null) {
+          searchParams.append(key, String(item))
+        }
+      })
+      return
+    }
+
+    searchParams.append(key, String(value))
+  })
+
+  return searchParams.toString()
+}
+
+async function downloadExportFile(path: string, params: object) {
+  const baseUrl = request.defaults.baseURL ?? '/api'
+  const queryString = buildQueryString(params)
+  const url = queryString ? `${baseUrl}${path}?${queryString}` : `${baseUrl}${path}`
+  const token = localStorage.getItem('access_token')
+
+  const response = await fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
+
+  if (response.status === 401) {
+    localStorage.removeItem('access_token')
+    window.location.href = '/login'
+    return
+  }
+
+  if (!response.ok) {
+    throw new Error('导出失败')
+  }
+
+  const blob = await response.blob()
+  const disposition = response.headers.get('content-disposition') ?? ''
+  const filenameMatch = disposition.match(/filename="?([^"]+)"?/)
+  const filename = filenameMatch?.[1] ?? 'export.xlsx'
+  const downloadUrl = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = downloadUrl
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(downloadUrl)
+}
+
 export const matrixApi = {
   query: (params: MatrixQueryParams) =>
     request.post<any, any>('/matrix/query', params).then((r) => r.data.data as MatrixQueryResult),
@@ -91,14 +154,14 @@ export const matrixApi = {
       .post<any, any>('/matrix/tooltip', params)
       .then((r) => r.data.data as MatrixTooltipResult),
 
-  exportUrl: '/api/matrix/export',
+  exportExcel: (params: MatrixQueryParams) => downloadExportFile('/matrix/export', params),
 }
 
 export const pipelineApi = {
-  query: (params: { disease: string; targets?: string[]; include_combo?: boolean }) =>
+  query: (params: PipelineQueryParams) =>
     request
       .post<any, any>('/pipeline/query', params)
       .then((r) => r.data.data as PipelineQueryResult),
 
-  exportUrl: '/api/pipeline/export',
+  exportExcel: (params: PipelineQueryParams) => downloadExportFile('/pipeline/export', params),
 }

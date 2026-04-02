@@ -25,6 +25,7 @@ interface MatrixBoardProps {
   isLoading: boolean
   diseases?: string[]
   stages?: string[]
+  total?: number
 }
 
 interface TooltipState {
@@ -39,6 +40,7 @@ const MatrixBoard = forwardRef<MatrixBoardHandle, MatrixBoardProps>(function Mat
   isLoading,
   diseases,
   stages,
+  total,
 }, ref) {
   const [tooltip, setTooltip] = useState<TooltipState | null>(null)
   const boardRef = useRef<HTMLDivElement | null>(null)
@@ -355,16 +357,21 @@ const MatrixBoard = forwardRef<MatrixBoardHandle, MatrixBoardProps>(function Mat
         </div>
       </div>
 
-      {/* Legend */}
+      {/* Legend + total */}
       <div className="analysis-legend">
-        {data.legend.map((item) => (
-          <div key={item.value} className="analysis-legend__item">
-            <span className="analysis-legend__swatch" style={getScoreStyle(item.score)} />
-            <span>
-              {item.matrix} ({item.score.toFixed(1)})
-            </span>
-          </div>
-        ))}
+        <div className="analysis-legend__items">
+          {data.legend.map((item) => (
+            <div key={item.value} className="analysis-legend__item">
+              <span className="analysis-legend__swatch" style={getScoreStyle(item.score)} />
+              <span>
+                {item.matrix} ({item.score.toFixed(1)})
+              </span>
+            </div>
+          ))}
+        </div>
+        {total != null && (
+          <span className="analysis-legend__total">靶点数 {total}</span>
+        )}
       </div>
 
       {/* Tooltip */}
