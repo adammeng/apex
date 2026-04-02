@@ -1,5 +1,5 @@
 import { Button, Tooltip, message } from 'antd'
-import { DownloadOutlined, FilterOutlined, FullscreenExitOutlined, FullscreenOutlined, ReloadOutlined } from '@ant-design/icons'
+import { DownloadOutlined, FullscreenExitOutlined, FullscreenOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import PipelineBoard from '../../components/analysis/PipelineBoard'
@@ -117,10 +117,7 @@ export default function PipelinePage() {
   return (
     <div className="analysis-page">
       <div className="analysis-page__hero">
-        {/* 中：筛选栏 */}
         <div className="analysis-filter-bar analysis-filter-bar--inline">
-          <FilterOutlined style={{ color: '#8494b0', flexShrink: 0 }} />
-
           <div className="analysis-filter-bar__item">
             <span className="analysis-filter-bar__label">疾病</span>
             <DiseaseSingleSelect
@@ -150,9 +147,7 @@ export default function PipelinePage() {
           </Button>
         </div>
 
-        {/* 右：导出 + 全屏 */}
         <div className="analysis-page__meta">
-          <div className="analysis-filter-bar__divider" />
           <Tooltip title="导出当前泳道数据为 Excel">
             <Button
               type="text"
