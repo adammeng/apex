@@ -5,7 +5,7 @@
 #   1. 创建/激活 Python venv
 #   2. 安装依赖
 #   3. 检查 .env 是否存在
-#   4. 检查 MySQL / Redis 端口可达性
+#   4. 启动并检查 MySQL / Redis
 #   5. alembic upgrade head（建表/迁移）
 #   6. 启动 uvicorn
 #      → uvicorn 启动时 lifespan 会自动检查 parquet：
@@ -47,22 +47,56 @@ if [ ! -f "$BACKEND_DIR/.env" ]; then
 fi
 info ".env 就绪"
 
-# ---------- 4. 检查基础服务（MySQL / Redis）----------
+# ---------- 4. 启动并检查基础服务（MySQL / Redis） ----------
+is_local_host() {
+  local host=$1
+  [ "$host" = "localhost" ] || [ "$host" = "127.0.0.1" ] || [ "$host" = "::1" ]
+}
+
+ensure_brew_service() {
+  local host=$1 service=$2 label=$3
+  if ! is_local_host "$host"; then
+    info "${label} 使用远程地址 ${host}，跳过本机服务启动"
+    return
+  fi
+
+  if ! command -v brew >/dev/null 2>&1; then
+    warn "未找到 brew，跳过 ${label} 自动启动"
+    return
+  fi
+
+  if ! brew list --versions "$service" >/dev/null 2>&1; then
+    warn "未安装 Homebrew 服务 ${service}，跳过 ${label} 自动启动"
+    return
+  fi
+
+  if brew services list 2>/dev/null | grep -q "^${service}.*started"; then
+    info "${label} 已启动（Homebrew）"
+    return
+  fi
+
+  info "启动 ${label}（brew services start ${service}）..."
+  brew services start "$service" >/dev/null
+}
+
 check_port() {
   local host=$1 port=$2 name=$3
   if ! nc -z "$host" "$port" 2>/dev/null; then
-    error "$name 在 $host:$port 不可达"
+    error "${name} 在 ${host}:${port} 不可达"
     error "请先启动基础服务，例如："
     error "  cd $(dirname "$BACKEND_DIR")/deploy && docker compose up -d mysql redis"
     exit 1
   fi
-  info "$name 连接正常（$host:$port）"
+  info "${name} 连接正常（${host}:${port}）"
 }
 
 MYSQL_HOST=$(grep -E '^MYSQL_HOST=' .env | cut -d= -f2 | tr -d '[:space:]' || echo "localhost")
 MYSQL_PORT=$(grep -E '^MYSQL_PORT=' .env | cut -d= -f2 | tr -d '[:space:]' || echo "3306")
 REDIS_HOST=$(grep -E '^REDIS_URL=' .env | sed 's|.*://\([^:/]*\).*|\1|' || echo "localhost")
 REDIS_PORT=$(grep -E '^REDIS_URL=' .env | sed 's|.*:\([0-9]*\)/.*|\1|' || echo "6379")
+
+ensure_brew_service "${MYSQL_HOST:-localhost}" "mysql" "MySQL"
+ensure_brew_service "${REDIS_HOST:-localhost}" "redis" "Redis"
 
 check_port "${MYSQL_HOST:-localhost}" "${MYSQL_PORT:-3306}" "MySQL"
 check_port "${REDIS_HOST:-localhost}" "${REDIS_PORT:-6379}" "Redis"
