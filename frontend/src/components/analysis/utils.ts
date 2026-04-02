@@ -2,15 +2,15 @@ import type { CSSProperties } from 'react'
 import type { TooltipDrug } from '../../services/analysis'
 
 const scorePalette = [
-  { min: 4, background: '#113a8f', color: '#fff', borderColor: '#113a8f' },
-  { min: 3.5, background: '#2454c5', color: '#fff', borderColor: '#2454c5' },
-  { min: 3, background: '#4c7ee8', color: '#fff', borderColor: '#4c7ee8' },
-  { min: 2.5, background: '#8fb0ff', color: '#17336b', borderColor: '#8fb0ff' },
-  { min: 2, background: '#bad0ff', color: '#17336b', borderColor: '#bad0ff' },
-  { min: 1.5, background: '#d6e2ff', color: '#17336b', borderColor: '#d6e2ff' },
-  { min: 1, background: '#e4ecff', color: '#17336b', borderColor: '#e4ecff' },
-  { min: 0.5, background: '#eef4ff', color: '#17336b', borderColor: '#d7e4ff' },
-  { min: 0.1, background: '#f5f7fb', color: '#536079', borderColor: '#e5ebf5' }
+  { min: 4,   background: '#1e40af', color: '#fff',     borderColor: '#1e3a8a' },
+  { min: 3.5, background: '#2563eb', color: '#fff',     borderColor: '#1d4ed8' },
+  { min: 3,   background: '#3b82f6', color: '#fff',     borderColor: '#2563eb' },
+  { min: 2.5, background: '#93c5fd', color: '#1e3a8a',  borderColor: '#60a5fa' },
+  { min: 2,   background: '#bfdbfe', color: '#1e3a8a',  borderColor: '#93c5fd' },
+  { min: 1.5, background: '#dbeafe', color: '#1e3a8a',  borderColor: '#bfdbfe' },
+  { min: 1,   background: '#eff6ff', color: '#1e40af',  borderColor: '#dbeafe' },
+  { min: 0.5, background: '#f8faff', color: '#3b82f6',  borderColor: '#e0eaff' },
+  { min: 0.1, background: '#f8fafc', color: '#64748b',  borderColor: '#e2e8f0' }
 ]
 
 export function getScoreStyle(score?: number | null, inactive = false): CSSProperties {

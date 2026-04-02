@@ -1,5 +1,5 @@
-import { Button, Space, Switch, Tooltip, Typography, message } from 'antd'
-import { DownloadOutlined, FilterOutlined, FullscreenExitOutlined, FullscreenOutlined, ReloadOutlined } from '@ant-design/icons'
+import { Button, Switch, Tooltip, message } from 'antd'
+import { DownloadOutlined, FullscreenExitOutlined, FullscreenOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import MatrixBoard from '../../components/analysis/MatrixBoard'
@@ -9,8 +9,6 @@ import { matrixApi } from '../../services/analysis'
 import { metaApi } from '../../services/meta'
 import { useFilterStore } from '../../stores/filter'
 import '../analysis.css'
-
-const { Text } = Typography
 
 export default function MatrixPage() {
   const matrix = useFilterStore((state) => state.matrix)
@@ -86,11 +84,7 @@ export default function MatrixPage() {
   return (
     <div className="analysis-page">
       <div className="analysis-page__hero">
-
-        {/* 中：筛选栏 */}
         <div className="analysis-filter-bar analysis-filter-bar--inline">
-          <FilterOutlined style={{ color: '#8494b0', flexShrink: 0 }} />
-
           <div className="analysis-filter-bar__item">
             <span className="analysis-filter-bar__label">疾病</span>
             <DiseaseTreeFilter
@@ -118,15 +112,12 @@ export default function MatrixPage() {
             重置
           </Button>
 
-          <div className="analysis-filter-bar__divider" />
-
-          <Space size={6}>
+          <label className="analysis-filter-switch">
             <Switch size="small" checked={matrix.hideNoCombo} onChange={setMatrixHideNoCombo} />
-            <Text style={{ whiteSpace: 'nowrap', fontSize: 13, color: '#52617c' }}>隐藏无组合</Text>
-          </Space>
+            <span>隐藏无组合</span>
+          </label>
         </div>
 
-        {/* 右：导出 + 全屏 */}
         <div className="analysis-page__meta">
           <Tooltip title="导出当前矩阵为 Excel">
             <Button

@@ -7,11 +7,11 @@ import { buildCsv, downloadCsv, getCellKey, getScoreStyle } from './utils'
 import { useBoardFullscreen } from './useBoardFullscreen'
 
 // ── 尺寸常量 ────────────────────────────────────────────────────────────────
-const ROW_H = 48           // 每行高度 px（数据行）
-const HEADER_H = 96        // 列头区域总高度（两行各 48px）
-const COL_TARGET_W = 180   // 行头"Target"列宽 px
-const COL_PHASE_W = 118    // 行头"Phase score"列宽 px
-const COL_W = 118          // 数据列宽 px
+const ROW_H = 56           // 每行高度 px（数据行）
+const HEADER_H = 112       // 列头区域总高度（两行各 56px）
+const COL_TARGET_W = 124   // 行头"Target"列宽 px
+const COL_PHASE_W = 124    // 行头"Phase score"列宽 px
+const COL_W = 124          // 数据列宽 px
 const FIXED_W = COL_TARGET_W + COL_PHASE_W  // 左侧两固定列总宽
 
 export interface MatrixBoardHandle {
@@ -257,12 +257,15 @@ const MatrixBoard = forwardRef<MatrixBoardHandle, MatrixBoardProps>(function Mat
                     top: HEADER_H / 2,
                     width: vc.size,
                     height: HEADER_H / 2,
-                    ...scoreStyle,
+                    background: '#f8fafc',
+                    padding: '4px 6px',
                   }}
                   onMouseEnter={(e) => openTooltip(e.currentTarget, target, target)}
                   onMouseLeave={scheduleCloseTooltip}
                 >
-                  {score ? score.toFixed(1) : '—'}
+                  <span className="vm-cell__pill" style={scoreStyle}>
+                    {score != null ? score.toFixed(1) : '—'}
+                  </span>
                 </div>
               )
             })}
@@ -304,12 +307,13 @@ const MatrixBoard = forwardRef<MatrixBoardHandle, MatrixBoardProps>(function Mat
                     style={{
                       width: COL_PHASE_W,
                       height: ROW_H,
-                      ...getScoreStyle(singleScore),
                     }}
                     onMouseEnter={(e) => openTooltip(e.currentTarget, rowTarget, rowTarget)}
                     onMouseLeave={scheduleCloseTooltip}
                   >
-                    {singleScore ? singleScore.toFixed(1) : '—'}
+                    <span className="vm-row-phase__pill" style={getScoreStyle(singleScore)}>
+                      {singleScore != null ? singleScore.toFixed(1) : '—'}
+                    </span>
                   </div>
                 </div>
               )
@@ -340,7 +344,6 @@ const MatrixBoard = forwardRef<MatrixBoardHandle, MatrixBoardProps>(function Mat
                       left: vc.start,
                       width: vc.size,
                       height: ROW_H,
-                      ...cellStyle,
                     }}
                     onMouseEnter={(e) => {
                       if (isDiag || !cell) return
@@ -348,7 +351,11 @@ const MatrixBoard = forwardRef<MatrixBoardHandle, MatrixBoardProps>(function Mat
                     }}
                     onMouseLeave={scheduleCloseTooltip}
                   >
-                    {score ? score.toFixed(1) : ''}
+                    {!isDiag && score != null && (
+                      <span className="vm-cell__pill" style={cellStyle}>
+                        {score.toFixed(1)}
+                      </span>
+                    )}
                   </div>
                 )
               })
