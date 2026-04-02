@@ -1,25 +1,30 @@
-"""
-矩阵路由 — 靶点竞争矩阵查询、tooltip、导出
-"""
+"""矩阵路由。"""
 
 from typing import List, Optional
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from ..core.duckdb_conn import get_conn
 from ..core.redis_client import cache_get, cache_set, make_cache_key
 from ..schemas.response import ApiResponse
+from ..services.analysis import (
+    STAGE_ITEMS,
+    compute_matrix,
+    compute_tooltip,
+    fetch_filtered_records,
+)
 
 router = APIRouter(prefix="/matrix", tags=["竞争矩阵"])
 
 
 class MatrixQueryParams(BaseModel):
-    diseases: Optional[List[str]] = None  # 适应症过滤
-    ta: Optional[str] = None  # 治疗领域过滤
-    min_stage_score: Optional[float] = None  # 最低阶段分值
-    targets: Optional[List[str]] = None  # 指定靶点（为空则取 top N）
-    top_n: int = 20  # 返回靶点数
+    diseases: Optional[List[str]] = None
+    ta: Optional[str] = None
+    stages: Optional[List[str]] = None
+    min_stage_score: Optional[float] = None
+    targets: Optional[List[str]] = None
+    top_n: Optional[int] = None
+    hide_no_combo: bool = False
 
 
 class TooltipParams(BaseModel):
@@ -27,28 +32,42 @@ class TooltipParams(BaseModel):
     col_target: str
     diseases: Optional[List[str]] = None
     ta: Optional[str] = None
+    stages: Optional[List[str]] = None
+    min_stage_score: Optional[float] = None
+
+
+def normalize_stage_filter(
+    stages: Optional[List[str]], min_stage_score: Optional[float]
+) -> Optional[List[str]]:
+    if stages:
+        return stages
+    if min_stage_score is None:
+        return None
+    return [item["value"] for item in STAGE_ITEMS if item["score"] >= min_stage_score]
 
 
 @router.post("/query", summary="矩阵查询")
 async def matrix_query(params: MatrixQueryParams):
-    """
-    返回靶点竞争矩阵数据。
-    缓存 key 基于请求参数的 MD5。
-    """
-    cache_key = make_cache_key("matrix", params.model_dump())
+    stage_filter = normalize_stage_filter(params.stages, params.min_stage_score)
+    cache_payload = params.model_dump(exclude_none=True)
+    cache_payload["stages"] = stage_filter
+    cache_key = make_cache_key("matrix", cache_payload)
     cached = await cache_get(cache_key)
     if cached:
         return ApiResponse.ok(data=cached)
 
-    # TODO: 实现完整矩阵查询逻辑（参考架构文档 9.2）
-    result = {
-        "targets": [],
-        "single_max": {},
-        "cells": [],
-        "legend": [],
-        "data_version": None,
-        "msg": "TODO: 矩阵查询逻辑待实现",
-    }
+    records = fetch_filtered_records(
+        diseases=params.diseases,
+        ta=params.ta,
+        stages=stage_filter,
+        require_targets=True,
+    )
+    result = compute_matrix(
+        records,
+        selected_targets=params.targets,
+        top_n=params.top_n,
+        hide_no_combo=params.hide_no_combo,
+    )
 
     await cache_set(cache_key, result)
     return ApiResponse.ok(data=result)
@@ -56,21 +75,21 @@ async def matrix_query(params: MatrixQueryParams):
 
 @router.post("/tooltip", summary="矩阵 Tooltip 详情")
 async def matrix_tooltip(params: TooltipParams):
-    """
-    返回矩阵特定单元格的药物明细。
-    """
-    cache_key = make_cache_key("matrix_tooltip", params.model_dump())
+    stage_filter = normalize_stage_filter(params.stages, params.min_stage_score)
+    cache_payload = params.model_dump(exclude_none=True)
+    cache_payload["stages"] = stage_filter
+    cache_key = make_cache_key("matrix_tooltip", cache_payload)
     cached = await cache_get(cache_key)
     if cached:
         return ApiResponse.ok(data=cached)
 
-    # TODO: 实现 tooltip 查询逻辑（参考架构文档 9.3）
-    result = {
-        "row_target": params.row_target,
-        "col_target": params.col_target,
-        "drugs": [],
-        "msg": "TODO: Tooltip 查询逻辑待实现",
-    }
+    records = fetch_filtered_records(
+        diseases=params.diseases,
+        ta=params.ta,
+        stages=stage_filter,
+        require_targets=True,
+    )
+    result = compute_tooltip(records, params.row_target, params.col_target)
 
     await cache_set(cache_key, result)
     return ApiResponse.ok(data=result)
@@ -78,8 +97,4 @@ async def matrix_tooltip(params: TooltipParams):
 
 @router.get("/export", summary="矩阵结果导出（Excel）")
 async def matrix_export():
-    """
-    导出当前矩阵筛选结果为 Excel。
-    """
-    # TODO: 实现导出逻辑（参考架构文档 9.5）
     return ApiResponse.ok(data={"msg": "TODO: 矩阵导出待实现"})

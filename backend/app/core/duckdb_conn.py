@@ -56,12 +56,12 @@ def _create_connection() -> duckdb.DuckDBPyConnection:
         OR nct_id IS NULL
     """)
 
-    # 视图二：stage_mapped_records — 阶段标准化 + score
+    # 视图二：stage_mapped_records — 阶段标准化 + score（PRD 使用全球阶段口径）
     conn.execute("""
         CREATE OR REPLACE VIEW stage_mapped_records AS
         SELECT
             *,
-            CASE indication_top_cn_latest_stage
+            CASE indication_top_global_latest_stage
                 WHEN '临床前'        THEN 0.1
                 WHEN '申报临床'      THEN 0.5
                 WHEN 'I期临床'       THEN 1.0
@@ -73,7 +73,7 @@ def _create_connection() -> duckdb.DuckDBPyConnection:
                 WHEN '批准上市'      THEN 4.0
                 ELSE NULL
             END AS stage_score,
-            CASE indication_top_cn_latest_stage
+            CASE indication_top_global_latest_stage
                 WHEN '临床前'        THEN 'PreClinical'
                 WHEN '申报临床'      THEN 'IND'
                 WHEN 'I期临床'       THEN 'Phase I'
@@ -83,7 +83,7 @@ def _create_connection() -> duckdb.DuckDBPyConnection:
                 WHEN 'III期临床'     THEN 'Phase III'
                 WHEN '申请上市'      THEN 'BLA'
                 WHEN '批准上市'      THEN 'Approved'
-                ELSE indication_top_cn_latest_stage
+                ELSE indication_top_global_latest_stage
             END AS stage_display
         FROM latest_records
     """)

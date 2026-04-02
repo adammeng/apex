@@ -67,9 +67,10 @@ async def sync_status():
 
             row2 = await conn.execute(
                 sa.text("""
-                    SELECT version, parquet_dir, created_at
-                    FROM data_versions
-                    ORDER BY version DESC
+                    SELECT version, updated_at
+                    FROM sync_jobs
+                    WHERE status = 'success'
+                    ORDER BY updated_at DESC
                     LIMIT 1
                 """)
             )
@@ -77,8 +78,8 @@ async def sync_status():
             if ver:
                 latest_version = {
                     "version": ver.version,
-                    "parquet_dir": ver.parquet_dir,
-                    "synced_at": ver.created_at.isoformat() if ver.created_at else None,
+                    "parquet_dir": str(settings.parquet_path),
+                    "synced_at": ver.updated_at.isoformat() if ver.updated_at else None,
                 }
         await engine.dispose()
     except Exception as e:

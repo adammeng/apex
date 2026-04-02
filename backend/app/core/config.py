@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Optional
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -23,7 +24,12 @@ class Settings(BaseSettings):
 
     # API
     api_prefix: str = "/api"
-    allowed_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    allowed_origins: list[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
 
     # JWT
     jwt_secret: str = "change-me-in-production"
@@ -36,7 +42,7 @@ class Settings(BaseSettings):
     feishu_redirect_uri: str = "http://localhost:8000/api/auth/feishu/callback"
 
     # 前端地址
-    frontend_url: str = "http://localhost:5173"
+    frontend_url: str = "http://127.0.0.1:5173"
 
     # Redis
     redis_url: str = "redis://localhost:6379/0"
@@ -97,6 +103,18 @@ class Settings(BaseSettings):
     oss_access_key_secret: str = ""
     oss_bucket_name: str = "apex-oss"
     oss_prefix: str = ""
+
+    @property
+    def is_development(self) -> bool:
+        return self.debug or self.environment.lower() == "development"
+
+    @property
+    def allowed_origin_regex(self) -> Optional[str]:
+        if not self.is_development:
+            return None
+
+        # 开发模式不限制 Origin，方便 localhost / 127 / 局域网 IP / 临时代理统一访问。
+        return r".*"
 
 
 @lru_cache
