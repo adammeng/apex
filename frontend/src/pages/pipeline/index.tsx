@@ -1,20 +1,23 @@
 import { Button, Card, Space, Switch, Tag, Typography } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import PipelineBoard from '../../components/analysis/PipelineBoard'
 import { DiseaseSingleSelect, TargetMultiSelect } from '../../components/analysis/filters'
 import { pipelineApi } from '../../services/analysis'
 import { metaApi } from '../../services/meta'
+import { useFilterStore } from '../../stores/filter'
 import '../analysis.css'
 
 const { Title, Text } = Typography
 
 export default function PipelinePage() {
-  const initializedRef = useRef(false)
-  const [selectedDisease, setSelectedDisease] = useState<string>()
-  const [selectedTargets, setSelectedTargets] = useState<string[]>([])
-  const [includeCombo, setIncludeCombo] = useState(true)
+  const pipeline = useFilterStore((state) => state.pipeline)
+  const setPipelineDisease = useFilterStore((state) => state.setPipelineDisease)
+  const setPipelineTargets = useFilterStore((state) => state.setPipelineTargets)
+  const setPipelineIncludeCombo = useFilterStore((state) => state.setPipelineIncludeCombo)
+  const markPipelineTargetsHydrated = useFilterStore((state) => state.markPipelineTargetsHydrated)
+  const resetPipeline = useFilterStore((state) => state.resetPipeline)
 
   const { data: dictionaries, isLoading: dictionariesLoading } = useQuery({
     queryKey: ['analysis-dictionaries'],
@@ -22,26 +25,49 @@ export default function PipelinePage() {
   })
 
   useEffect(() => {
-    if (!dictionaries || initializedRef.current) {
+    if (!dictionaries?.diseases.length || pipeline.selectedDisease) {
       return
     }
 
-    setSelectedDisease(dictionaries.diseases[0]?.name)
-    initializedRef.current = true
-  }, [dictionaries])
+    setPipelineDisease(dictionaries.diseases[0]?.name)
+  }, [dictionaries, pipeline.selectedDisease, setPipelineDisease])
 
   const { data: targetData, isLoading: targetsLoading } = useQuery({
-    queryKey: ['pipeline-targets', selectedDisease],
-    queryFn: () => metaApi.getTargets(selectedDisease),
-    enabled: !!selectedDisease,
+    queryKey: ['pipeline-targets', pipeline.selectedDisease],
+    queryFn: () => metaApi.getTargets(pipeline.selectedDisease),
+    enabled: !!pipeline.selectedDisease,
   })
 
   useEffect(() => {
-    if (!targetData) {
+    if (!targetData || !pipeline.selectedDisease) {
       return
     }
-    setSelectedTargets(targetData.targets)
-  }, [targetData])
+
+    const availableTargets = targetData.targets
+    const nextSelectedTargets = pipeline.selectedTargets.filter((target) => availableTargets.includes(target))
+
+    if (pipeline.targetsHydratedDisease === pipeline.selectedDisease) {
+      if (nextSelectedTargets.length !== pipeline.selectedTargets.length) {
+        setPipelineTargets(nextSelectedTargets)
+      }
+      return
+    }
+
+    if (nextSelectedTargets.length > 0) {
+      setPipelineTargets(nextSelectedTargets)
+    } else {
+      setPipelineTargets(availableTargets)
+    }
+
+    markPipelineTargetsHydrated(pipeline.selectedDisease)
+  }, [
+    markPipelineTargetsHydrated,
+    pipeline.selectedDisease,
+    pipeline.selectedTargets,
+    pipeline.targetsHydratedDisease,
+    setPipelineTargets,
+    targetData,
+  ])
 
   const targetGroups = useMemo(() => targetData?.groups ?? [], [targetData])
   const allTargets = useMemo(() => targetData?.targets ?? [], [targetData])
@@ -49,21 +75,21 @@ export default function PipelinePage() {
     if (!targetData) {
       return undefined
     }
-    if (selectedTargets.length === allTargets.length) {
+    if (pipeline.selectedTargets.length === allTargets.length) {
       return undefined
     }
-    return selectedTargets
-  }, [allTargets.length, selectedTargets, targetData])
+    return pipeline.selectedTargets
+  }, [allTargets.length, pipeline.selectedTargets, targetData])
 
   const { data, isLoading } = useQuery({
-    queryKey: ['pipeline-query', selectedDisease, targetPayload, includeCombo],
+    queryKey: ['pipeline-query', pipeline.selectedDisease, targetPayload, pipeline.includeCombo],
     queryFn: () =>
       pipelineApi.query({
-        disease: selectedDisease as string,
+        disease: pipeline.selectedDisease as string,
         targets: targetPayload,
-        include_combo: includeCombo,
+        include_combo: pipeline.includeCombo,
       }),
-    enabled: !!selectedDisease,
+    enabled: !!pipeline.selectedDisease,
   })
 
   function handleReset() {
@@ -72,8 +98,10 @@ export default function PipelinePage() {
     }
 
     const firstDisease = dictionaries.diseases[0].name
-    setSelectedDisease(firstDisease)
-    setIncludeCombo(true)
+    resetPipeline({
+      disease: firstDisease,
+      targets: firstDisease === pipeline.selectedDisease ? allTargets : undefined,
+    })
   }
 
   return (
@@ -87,7 +115,7 @@ export default function PipelinePage() {
           </p>
         </div>
         <div className="analysis-page__meta">
-          {selectedDisease ? <Tag color="blue">{selectedDisease}</Tag> : null}
+          {pipeline.selectedDisease ? <Tag color="blue">{pipeline.selectedDisease}</Tag> : null}
         </div>
       </div>
 
@@ -97,8 +125,8 @@ export default function PipelinePage() {
             <div className="analysis-filter-group__label">疾病</div>
             <DiseaseSingleSelect
               options={dictionaries?.diseases ?? []}
-              value={selectedDisease}
-              onChange={setSelectedDisease}
+              value={pipeline.selectedDisease}
+              onChange={setPipelineDisease}
             />
           </div>
 
@@ -106,8 +134,8 @@ export default function PipelinePage() {
             <div className="analysis-filter-group__label">靶点</div>
             <TargetMultiSelect
               groups={targetGroups}
-              value={selectedTargets}
-              onChange={setSelectedTargets}
+              value={pipeline.selectedTargets}
+              onChange={setPipelineTargets}
               disabled={targetsLoading || allTargets.length === 0}
             />
           </div>
@@ -116,7 +144,7 @@ export default function PipelinePage() {
             <div className="analysis-filter-group__label">显示控制</div>
             <Space direction="vertical" size={12}>
               <Space>
-                <Switch checked={includeCombo} onChange={setIncludeCombo} />
+                <Switch checked={pipeline.includeCombo} onChange={setPipelineIncludeCombo} />
                 <Text>包含组合靶点</Text>
               </Space>
               <div className="analysis-filter-side__actions">

@@ -1,35 +1,143 @@
 import { create } from 'zustand'
 
-interface FilterState {
-  // 选中的治疗领域
-  selectedTa: string | null
-  // 选中的适应症列表
+interface MatrixFilterState {
   selectedDiseases: string[]
-  // 选中的靶点列表
-  selectedTargets: string[]
-  // 最低阶段分值
-  minStageScore: number | null
-
-  setTa: (ta: string | null) => void
-  setDiseases: (diseases: string[]) => void
-  setTargets: (targets: string[]) => void
-  setMinStageScore: (score: number | null) => void
-  resetFilters: () => void
+  selectedStages: string[]
+  hideNoCombo: boolean
+  initialized: boolean
 }
 
-const initialState = {
-  selectedTa: null,
+interface PipelineFilterState {
+  selectedDisease?: string
+  selectedTargets: string[]
+  includeCombo: boolean
+  targetsHydratedDisease?: string
+}
+
+interface FilterState {
+  matrix: MatrixFilterState
+  pipeline: PipelineFilterState
+  initializeMatrix: (payload: Pick<MatrixFilterState, 'selectedDiseases' | 'selectedStages'>) => void
+  setMatrixDiseases: (diseases: string[]) => void
+  setMatrixStages: (stages: string[]) => void
+  setMatrixHideNoCombo: (hideNoCombo: boolean) => void
+  resetMatrix: (payload: Pick<MatrixFilterState, 'selectedDiseases' | 'selectedStages'>) => void
+  setPipelineDisease: (disease?: string) => void
+  setPipelineTargets: (targets: string[]) => void
+  setPipelineIncludeCombo: (includeCombo: boolean) => void
+  markPipelineTargetsHydrated: (disease?: string) => void
+  resetPipeline: (payload: { disease?: string; targets?: string[] }) => void
+}
+
+const initialMatrixState: MatrixFilterState = {
   selectedDiseases: [],
+  selectedStages: [],
+  hideNoCombo: false,
+  initialized: false,
+}
+
+const initialPipelineState: PipelineFilterState = {
+  selectedDisease: undefined,
   selectedTargets: [],
-  minStageScore: null,
+  includeCombo: true,
+  targetsHydratedDisease: undefined,
 }
 
 export const useFilterStore = create<FilterState>((set) => ({
-  ...initialState,
+  matrix: initialMatrixState,
+  pipeline: initialPipelineState,
 
-  setTa: (ta) => set({ selectedTa: ta }),
-  setDiseases: (diseases) => set({ selectedDiseases: diseases }),
-  setTargets: (targets) => set({ selectedTargets: targets }),
-  setMinStageScore: (score) => set({ minStageScore: score }),
-  resetFilters: () => set(initialState),
+  initializeMatrix: ({ selectedDiseases, selectedStages }) =>
+    set((state) => {
+      if (state.matrix.initialized) {
+        return state
+      }
+
+      return {
+        matrix: {
+          ...state.matrix,
+          selectedDiseases,
+          selectedStages,
+          initialized: true,
+        },
+      }
+    }),
+
+  setMatrixDiseases: (selectedDiseases) =>
+    set((state) => ({
+      matrix: {
+        ...state.matrix,
+        selectedDiseases,
+      },
+    })),
+
+  setMatrixStages: (selectedStages) =>
+    set((state) => ({
+      matrix: {
+        ...state.matrix,
+        selectedStages,
+      },
+    })),
+
+  setMatrixHideNoCombo: (hideNoCombo) =>
+    set((state) => ({
+      matrix: {
+        ...state.matrix,
+        hideNoCombo,
+      },
+    })),
+
+  resetMatrix: ({ selectedDiseases, selectedStages }) =>
+    set((state) => ({
+      matrix: {
+        ...state.matrix,
+        selectedDiseases,
+        selectedStages,
+        hideNoCombo: false,
+        initialized: true,
+      },
+    })),
+
+  setPipelineDisease: (selectedDisease) =>
+    set((state) => ({
+      pipeline: {
+        ...state.pipeline,
+        selectedDisease,
+      },
+    })),
+
+  setPipelineTargets: (selectedTargets) =>
+    set((state) => ({
+      pipeline: {
+        ...state.pipeline,
+        selectedTargets,
+      },
+    })),
+
+  setPipelineIncludeCombo: (includeCombo) =>
+    set((state) => ({
+      pipeline: {
+        ...state.pipeline,
+        includeCombo,
+      },
+    })),
+
+  markPipelineTargetsHydrated: (targetsHydratedDisease) =>
+    set((state) => ({
+      pipeline: {
+        ...state.pipeline,
+        targetsHydratedDisease,
+      },
+    })),
+
+  resetPipeline: ({ disease, targets }) =>
+    set((state) => ({
+      pipeline: {
+        ...state.pipeline,
+        selectedDisease: disease,
+        selectedTargets: targets ?? [],
+        includeCombo: true,
+        targetsHydratedDisease: targets ? disease : undefined,
+      },
+    })),
 }))

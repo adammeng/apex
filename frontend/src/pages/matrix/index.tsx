@@ -1,20 +1,23 @@
 import { Button, Card, Space, Switch, Tag, Typography } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import MatrixBoard from '../../components/analysis/MatrixBoard'
 import { DiseaseTreeFilter, StageFilter } from '../../components/analysis/filters'
 import { matrixApi } from '../../services/analysis'
 import { metaApi } from '../../services/meta'
+import { useFilterStore } from '../../stores/filter'
 import '../analysis.css'
 
 const { Title, Text } = Typography
 
 export default function MatrixPage() {
-  const initializedRef = useRef(false)
-  const [selectedDiseases, setSelectedDiseases] = useState<string[]>([])
-  const [selectedStages, setSelectedStages] = useState<string[]>([])
-  const [hideNoCombo, setHideNoCombo] = useState(false)
+  const matrix = useFilterStore((state) => state.matrix)
+  const initializeMatrix = useFilterStore((state) => state.initializeMatrix)
+  const setMatrixDiseases = useFilterStore((state) => state.setMatrixDiseases)
+  const setMatrixStages = useFilterStore((state) => state.setMatrixStages)
+  const setMatrixHideNoCombo = useFilterStore((state) => state.setMatrixHideNoCombo)
+  const resetMatrix = useFilterStore((state) => state.resetMatrix)
 
   const { data: dictionaries, isLoading: dictionariesLoading } = useQuery({
     queryKey: ['analysis-dictionaries'],
@@ -31,30 +34,33 @@ export default function MatrixPage() {
   )
 
   useEffect(() => {
-    if (!dictionaries || initializedRef.current) {
+    if (!dictionaries) {
       return
     }
 
-    setSelectedDiseases(allDiseases)
-    setSelectedStages(allStageValues)
-    initializedRef.current = true
-  }, [allDiseases, allStageValues, dictionaries])
+    initializeMatrix({
+      selectedDiseases: allDiseases,
+      selectedStages: allStageValues,
+    })
+  }, [allDiseases, allStageValues, dictionaries, initializeMatrix])
 
   const { data, isLoading } = useQuery({
-    queryKey: ['matrix-query', selectedDiseases, selectedStages, hideNoCombo],
+    queryKey: ['matrix-query', matrix.selectedDiseases, matrix.selectedStages, matrix.hideNoCombo],
     queryFn: () =>
       matrixApi.query({
-        diseases: selectedDiseases,
-        stages: selectedStages,
-        hide_no_combo: hideNoCombo,
+        diseases: matrix.selectedDiseases,
+        stages: matrix.selectedStages,
+        top_n: 40,
+        hide_no_combo: matrix.hideNoCombo,
       }),
-    enabled: selectedDiseases.length > 0 && selectedStages.length > 0,
+    enabled: matrix.selectedDiseases.length > 0 && matrix.selectedStages.length > 0,
   })
 
   function handleReset() {
-    setSelectedDiseases(allDiseases)
-    setSelectedStages(allStageValues)
-    setHideNoCombo(false)
+    resetMatrix({
+      selectedDiseases: allDiseases,
+      selectedStages: allStageValues,
+    })
   }
 
   return (
@@ -69,6 +75,7 @@ export default function MatrixPage() {
         </div>
         <div className="analysis-page__meta">
           {data?.available_target_total ? <Tag color="geekblue">靶点数 {data.available_target_total}</Tag> : null}
+          {data?.targets?.length ? <Tag color="cyan">当前展示 {data.targets.length}</Tag> : null}
         </div>
       </div>
 
@@ -78,8 +85,8 @@ export default function MatrixPage() {
             <div className="analysis-filter-group__label">疾病筛选</div>
             <DiseaseTreeFilter
               diseaseTree={dictionaries?.disease_tree ?? []}
-              value={selectedDiseases}
-              onChange={setSelectedDiseases}
+              value={matrix.selectedDiseases}
+              onChange={setMatrixDiseases}
             />
           </div>
 
@@ -87,8 +94,8 @@ export default function MatrixPage() {
             <div className="analysis-filter-group__label">研发阶段</div>
             <StageFilter
               stages={dictionaries?.stages ?? []}
-              value={selectedStages}
-              onChange={setSelectedStages}
+              value={matrix.selectedStages}
+              onChange={setMatrixStages}
             />
           </div>
 
@@ -96,7 +103,7 @@ export default function MatrixPage() {
             <div className="analysis-filter-group__label">显示控制</div>
             <Space direction="vertical" size={12}>
               <Space>
-                <Switch checked={hideNoCombo} onChange={setHideNoCombo} />
+                <Switch checked={matrix.hideNoCombo} onChange={setMatrixHideNoCombo} />
                 <Text>隐藏无组合的靶点</Text>
               </Space>
               <div className="analysis-filter-side__actions">
@@ -105,7 +112,7 @@ export default function MatrixPage() {
                 </Button>
               </div>
               <div className="analysis-hint">
-                当前按最高研发阶段排序，展示当前筛选条件下的全部靶点。
+                当前按最高研发阶段排序，默认展示当前筛选条件下的 Top 40 靶点。
               </div>
             </Space>
           </div>
@@ -115,8 +122,8 @@ export default function MatrixPage() {
       <MatrixBoard
         data={data}
         isLoading={isLoading}
-        diseases={selectedDiseases}
-        stages={selectedStages}
+        diseases={matrix.selectedDiseases}
+        stages={matrix.selectedStages}
       />
     </div>
   )
