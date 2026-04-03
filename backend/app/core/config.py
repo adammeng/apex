@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
@@ -11,7 +12,6 @@ _BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -119,4 +119,13 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    env_file_override = os.getenv("APEX_ENV_FILE", "").strip()
+    if env_file_override:
+        env_files = (env_file_override,)
+    else:
+        env_files = tuple(
+            str(path)
+            for path in (_BACKEND_DIR / ".env", _BACKEND_DIR / ".env.local")
+            if path.exists()
+        )
+    return Settings(_env_file=env_files or None)

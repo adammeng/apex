@@ -27,6 +27,7 @@ Thumbs.db
 # Env — 各子目录自己管理，不追踪真实凭据
 backend/.env
 backend/.env.local
+backend/.env.production
 frontend/.env.local
 frontend/.env.*.local
 frontend/.cert/

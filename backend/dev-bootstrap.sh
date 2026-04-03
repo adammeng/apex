@@ -4,7 +4,7 @@
 # 执行顺序：
 #   1. 创建/激活 Python venv
 #   2. 安装依赖
-#   3. 检查 .env 是否存在
+#   3. 检查环境变量文件是否存在（优先 .env.local）
 #   4. 启动并检查 MySQL / Redis
 #   5. alembic upgrade head（建表/迁移）
 #   6. 启动 uvicorn
@@ -38,14 +38,23 @@ info "安装/更新依赖..."
 pip install -q --upgrade pip
 pip install -q -r requirements.txt
 
-# ---------- 3. 检查 .env ----------
-if [ ! -f "$BACKEND_DIR/.env" ]; then
-  warn ".env 不存在，从 .env.example 复制..."
-  cp "$BACKEND_DIR/.env.example" "$BACKEND_DIR/.env"
-  warn "请编辑 backend/.env，填入实际配置后重新运行本脚本"
+# ---------- 3. 检查环境变量文件 ----------
+ENV_FILE="${APEX_ENV_FILE:-$BACKEND_DIR/.env.local}"
+ENV_TEMPLATE="$BACKEND_DIR/.env.local.example"
+
+if [ "$ENV_FILE" = "$BACKEND_DIR/.env" ]; then
+  ENV_TEMPLATE="$BACKEND_DIR/.env.example"
+elif [ "$ENV_FILE" = "$BACKEND_DIR/.env.production" ]; then
+  ENV_TEMPLATE="$BACKEND_DIR/.env.production.example"
+fi
+
+if [ ! -f "$ENV_FILE" ]; then
+  warn "$(basename "$ENV_FILE") 不存在，从 $(basename "$ENV_TEMPLATE") 复制..."
+  cp "$ENV_TEMPLATE" "$ENV_FILE"
+  warn "请编辑 ${ENV_FILE}，填入实际配置后重新运行本脚本"
   exit 1
 fi
-info ".env 就绪"
+info "$(basename "$ENV_FILE") 就绪"
 
 # ---------- 4. 启动并检查基础服务（MySQL / Redis） ----------
 is_local_host() {
@@ -90,10 +99,10 @@ check_port() {
   info "${name} 连接正常（${host}:${port}）"
 }
 
-MYSQL_HOST=$(grep -E '^MYSQL_HOST=' .env | cut -d= -f2 | tr -d '[:space:]' || echo "localhost")
-MYSQL_PORT=$(grep -E '^MYSQL_PORT=' .env | cut -d= -f2 | tr -d '[:space:]' || echo "3306")
-REDIS_HOST=$(grep -E '^REDIS_URL=' .env | sed 's|.*://\([^:/]*\).*|\1|' || echo "localhost")
-REDIS_PORT=$(grep -E '^REDIS_URL=' .env | sed 's|.*:\([0-9]*\)/.*|\1|' || echo "6379")
+MYSQL_HOST=$(grep -E '^MYSQL_HOST=' "$ENV_FILE" | cut -d= -f2 | tr -d '[:space:]' || echo "localhost")
+MYSQL_PORT=$(grep -E '^MYSQL_PORT=' "$ENV_FILE" | cut -d= -f2 | tr -d '[:space:]' || echo "3306")
+REDIS_HOST=$(grep -E '^REDIS_URL=' "$ENV_FILE" | sed 's|.*://\([^:/]*\).*|\1|' || echo "localhost")
+REDIS_PORT=$(grep -E '^REDIS_URL=' "$ENV_FILE" | sed 's|.*:\([0-9]*\)/.*|\1|' || echo "6379")
 
 ensure_brew_service "${MYSQL_HOST:-localhost}" "mysql" "MySQL"
 ensure_brew_service "${REDIS_HOST:-localhost}" "redis" "Redis"

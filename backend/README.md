@@ -140,7 +140,18 @@ brew services stop redis
 
 ## 环境变量
 
-复制 `.env.example` 为 `.env`，按下表填写：
+推荐分环境管理：
+
+- 本地开发：复制 `.env.local.example` 为 `.env.local`
+- 线上部署：复制 `.env.production.example` 为 `.env.production`
+- 如果不额外区分环境，也可以直接使用 `.env`
+
+配置读取优先级：
+
+- 默认：`.env` -> `.env.local`（后者覆盖前者同名项）
+- 指定文件：设置 `APEX_ENV_FILE=/absolute/path/to/.env.production`
+
+按下表填写：
 
 | 分类 | 变量 | 说明 |
 |------|------|------|
