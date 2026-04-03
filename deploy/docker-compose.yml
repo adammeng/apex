@@ -6,6 +6,8 @@ services:
     container_name: apex_backend
     restart: unless-stopped
     env_file: ../backend/.env.production
+    environment:
+      - TZ=Asia/Shanghai
     volumes:
       - ../data:/data
       - ../backend/parquet:/app/parquet   # parquet 固定目录，容器内同路径
@@ -30,6 +32,8 @@ services:
     container_name: apex_mysql
     restart: unless-stopped
     env_file: ../backend/.env.production
+    environment:
+      - TZ=Asia/Shanghai
     volumes:
       - mysql_data:/var/lib/mysql
     ports:
@@ -45,6 +49,8 @@ services:
     container_name: apex_redis
     restart: unless-stopped
     command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    environment:
+      - TZ=Asia/Shanghai
     volumes:
       - redis_data:/data
     ports:
@@ -54,6 +60,8 @@ services:
     image: nginx:alpine
     container_name: apex_nginx
     restart: unless-stopped
+    environment:
+      - TZ=Asia/Shanghai
     ports:
       - "127.0.0.1:8080:80"
     volumes:
