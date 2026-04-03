@@ -60,8 +60,11 @@ export default function MatrixTooltipCard({
 
       <div className="matrix-tooltip-card__scroll">
         <div className="matrix-tooltip-card__list">
-          {data.drugs.map((drug) => (
-            <div key={`${drug.drug_id}-${drug.nct_id}-${drug.disease}`} className="matrix-tooltip-card__item">
+          {data.drugs.map((drug, index) => (
+            <div
+              key={`${drug.drug_id}-${drug.nct_id}-${drug.disease}-${drug.stage_value}-${index}`}
+              className="matrix-tooltip-card__item"
+            >
               <div className="matrix-tooltip-card__item-top">
                 <span className="matrix-tooltip-card__item-name">{getDrugDisplayName(drug)}</span>
                 <span className="matrix-tooltip-card__item-tag">
