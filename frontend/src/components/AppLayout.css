@@ -100,17 +100,22 @@
   box-shadow: none;
 }
 
-.app-sider__menu.ant-menu .ant-menu-item-selected .ant-menu-item-icon {
+.app-sider__menu.ant-menu .ant-menu-item-selected .ant-menu-item-icon,
+.app-sider__menu.ant-menu .ant-menu-item-selected .anticon {
   color: #5ba1ff;
 }
 
-.app-sider__menu.ant-menu .ant-menu-item:hover {
-  background: rgba(255, 255, 255, 0.02) !important;
-  color: #d7deeb;
+.app-sider__menu.ant-menu .ant-menu-item:hover,
+.app-sider__menu.ant-menu .ant-menu-item.ant-menu-item-active {
+  background: #111b3a !important;
+  color: #ffffff;
 }
 
-.app-sider__menu.ant-menu .ant-menu-item:hover .ant-menu-item-icon {
-  color: #bfd0ec;
+.app-sider__menu.ant-menu .ant-menu-item:hover .ant-menu-item-icon,
+.app-sider__menu.ant-menu .ant-menu-item:hover .anticon,
+.app-sider__menu.ant-menu .ant-menu-item.ant-menu-item-active .ant-menu-item-icon,
+.app-sider__menu.ant-menu .ant-menu-item.ant-menu-item-active .anticon {
+  color: #5ba1ff;
 }
 
 .app-sider__user {
