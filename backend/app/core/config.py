@@ -3,7 +3,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import List, Optional
 
-from pydantic import field_validator, model_validator
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # backend/ 目录的绝对路径（config.py 在 backend/app/core/ 下，上三级即 backend/）
@@ -31,17 +31,14 @@ class Settings(BaseSettings):
 
     # API
     api_prefix: str = "/api"
-    # 可通过环境变量 ALLOWED_ORIGINS 传入逗号分隔的域名列表
+    # 逗号分隔的允许跨域来源，用 str 接收避免 pydantic-settings JSON 解析问题
     # 生产示例：ALLOWED_ORIGINS=https://apex.adammeng.xyz
-    allowed_origins: List[str] = _DEV_ORIGINS
+    # 多个：ALLOWED_ORIGINS=https://a.com,https://b.com
+    allowed_origins_str: str = ",".join(_DEV_ORIGINS)
 
-    @field_validator("allowed_origins", mode="before")
-    @classmethod
-    def parse_allowed_origins(cls, v: object) -> List[str]:
-        """支持逗号分隔字符串或列表两种格式"""
-        if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
-        return v  # type: ignore[return-value]
+    @property
+    def allowed_origins(self) -> List[str]:
+        return [o.strip() for o in self.allowed_origins_str.split(",") if o.strip()]
 
     # JWT
     jwt_secret: str = "change-me-in-production"
