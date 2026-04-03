@@ -2,8 +2,8 @@
 系统路由 — 健康检查、数据同步状态、手动触发同步
 """
 
-import json
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
@@ -12,6 +12,18 @@ from ..core.config import get_settings
 from ..schemas.response import ApiResponse
 
 router = APIRouter(prefix="/system", tags=["系统"])
+_SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
+
+
+def _to_shanghai_iso(dt: Optional[datetime]) -> Optional[str]:
+    if dt is None:
+        return None
+
+    # MySQL DATETIME 不保留 tzinfo，这里按“库里存的是 UTC”解释，再转北京时间返回给前端。
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+
+    return dt.astimezone(_SHANGHAI_TZ).isoformat()
 
 
 @router.get("/health", summary="健康检查")
@@ -24,7 +36,7 @@ async def health():
             "app_name": settings.app_name,
             "version": settings.app_version,
             "environment": settings.environment,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).astimezone(_SHANGHAI_TZ).isoformat(),
         }
     )
 
@@ -57,12 +69,8 @@ async def sync_status():
                     "version": job.version,
                     "status": job.status,
                     "error_msg": job.error_msg,
-                    "started_at": job.created_at.isoformat()
-                    if job.created_at
-                    else None,
-                    "updated_at": job.updated_at.isoformat()
-                    if job.updated_at
-                    else None,
+                    "started_at": _to_shanghai_iso(job.created_at),
+                    "updated_at": _to_shanghai_iso(job.updated_at),
                 }
 
             row2 = await conn.execute(
@@ -79,7 +87,7 @@ async def sync_status():
                 latest_version = {
                     "version": ver.version,
                     "parquet_dir": str(settings.parquet_path),
-                    "synced_at": ver.updated_at.isoformat() if ver.updated_at else None,
+                    "synced_at": _to_shanghai_iso(ver.updated_at),
                 }
         await engine.dispose()
     except Exception as e:

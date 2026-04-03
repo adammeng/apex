@@ -29,7 +29,8 @@ async def _sync_job() -> None:
     from .oss_sync import run_sync
 
     logger.info("定时同步任务触发")
-    result = await run_sync()
+    # 定时任务应按计划强制从 OSS 拉取最新文件，而不是仅在本地缺文件时才执行。
+    result = await run_sync(force=True)
     logger.info(f"定时同步任务完成: {result}")
 
 

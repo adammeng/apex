@@ -12,11 +12,13 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from ..core.config import get_settings
 from ..core.logging import get_logger
 
 logger = get_logger(__name__)
+_SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
 
 _PARQUET_ATTRS = [
     "parquet_ci_tracking",
@@ -88,13 +90,56 @@ def _atomic_replace_parquet(tmp_dir: Path, target_dir: Path) -> None:
         logger.info(f"  写入 {dst.name}")
 
 
-async def _write_sync_record(
+async def _create_sync_record(
     version: str,
+    status: str = "running",
+) -> Optional[int]:
+    """创建一条同步记录并返回主键 id。失败仅记录日志，不抛出异常。"""
+    try:
+        import sqlalchemy as sa
+        from sqlalchemy.ext.asyncio import create_async_engine
+
+        settings = get_settings()
+        engine = create_async_engine(settings.mysql_dsn, pool_pre_ping=True)
+        now = datetime.now(timezone.utc)
+
+        async with engine.begin() as conn:
+            result = await conn.execute(
+                sa.text("""
+                    INSERT INTO sync_jobs
+                        (version, status, md5_map, error_msg, created_at, updated_at)
+                    VALUES
+                        (:version, :status, :md5_map, :error_msg, :now, :now)
+                """),
+                {
+                    "version": version,
+                    "status": status,
+                    "md5_map": "{}",
+                    "error_msg": None,
+                    "now": now,
+                },
+            )
+        await engine.dispose()
+        record_id = result.lastrowid
+        logger.info(
+            f"同步记录已创建 id={record_id} version={version} status={status}"
+        )
+        return int(record_id) if record_id is not None else None
+    except Exception as e:
+        logger.warning(f"创建同步记录失败（不影响主流程）: {e}")
+        return None
+
+
+async def _finish_sync_record(
+    record_id: Optional[int],
     status: str,
     md5_map: Optional[dict[str, str]] = None,
     error_msg: Optional[str] = None,
 ) -> None:
-    """将同步结果写入 MySQL sync_jobs 表。失败仅记录日志，不抛出异常。"""
+    """更新同步记录状态。失败仅记录日志，不抛出异常。"""
+    if record_id is None:
+        return
+
     try:
         import json
 
@@ -108,18 +153,15 @@ async def _write_sync_record(
         async with engine.begin() as conn:
             await conn.execute(
                 sa.text("""
-                    INSERT INTO sync_jobs
-                        (version, status, md5_map, error_msg, created_at, updated_at)
-                    VALUES
-                        (:version, :status, :md5_map, :error_msg, :now, :now)
-                    ON DUPLICATE KEY UPDATE
-                        status     = VALUES(status),
-                        md5_map    = VALUES(md5_map),
-                        error_msg  = VALUES(error_msg),
-                        updated_at = VALUES(updated_at)
+                    UPDATE sync_jobs
+                    SET status = :status,
+                        md5_map = :md5_map,
+                        error_msg = :error_msg,
+                        updated_at = :now
+                    WHERE id = :record_id
                 """),
                 {
-                    "version": version,
+                    "record_id": record_id,
                     "status": status,
                     "md5_map": json.dumps(md5_map or {}, ensure_ascii=False),
                     "error_msg": error_msg,
@@ -127,9 +169,9 @@ async def _write_sync_record(
                 },
             )
         await engine.dispose()
-        logger.info(f"同步记录已写入 MySQL version={version} status={status}")
+        logger.info(f"同步记录已更新 id={record_id} status={status}")
     except Exception as e:
-        logger.warning(f"写入同步记录失败（不影响主流程）: {e}")
+        logger.warning(f"更新同步记录失败（不影响主流程）: {e}")
 
 
 async def run_sync(force: bool = False) -> dict:
@@ -143,7 +185,7 @@ async def run_sync(force: bool = False) -> dict:
         {"status": "success"|"failed"|"skipped", "msg": ...}
     """
     settings = get_settings()
-    version = datetime.now(timezone.utc).strftime("%Y%m%d")
+    version = datetime.now(_SHANGHAI_TZ).strftime("%Y%m%d")
 
     # 有文件且不强制 → 跳过（本地开发常态）
     if not force and _parquet_ready(settings):
@@ -151,7 +193,7 @@ async def run_sync(force: bool = False) -> dict:
         return {"status": "skipped", "msg": "文件已存在，跳过下载"}
 
     logger.info(f"开始 OSS 数据同步 version={version}")
-    await _write_sync_record(version, "running")
+    record_id = await _create_sync_record(version, "running")
 
     tmp_dir = settings.parquet_path.parent / ".parquet_tmp"
     try:
@@ -176,14 +218,14 @@ async def run_sync(force: bool = False) -> dict:
         except Exception as e:
             logger.warning(f"Redis 缓存清理失败: {e}")
 
-        await _write_sync_record(version, "success", md5_map)
+        await _finish_sync_record(record_id, "success", md5_map)
         logger.info("OSS 数据同步完成")
         return {"status": "success", "msg": "同步完成"}
 
     except Exception as e:
         error_msg = str(e)
         logger.error(f"OSS 数据同步失败: {error_msg}", exc_info=True)
-        await _write_sync_record(version, "failed", error_msg=error_msg)
+        await _finish_sync_record(record_id, "failed", error_msg=error_msg)
         return {"status": "failed", "msg": error_msg}
 
     finally:
