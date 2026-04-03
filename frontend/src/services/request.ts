@@ -31,6 +31,26 @@ const request = axios.create({
   },
 })
 
+function resolveHttpErrorMessage(error: unknown) {
+  if (axios.isAxiosError(error)) {
+    const detail = error.response?.data?.detail
+    if (typeof detail === 'string' && detail.trim()) {
+      return detail
+    }
+
+    const msg = error.response?.data?.msg
+    if (typeof msg === 'string' && msg.trim()) {
+      return msg
+    }
+  }
+
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  return '请求失败'
+}
+
 // 请求拦截器：自动附加 JWT
 request.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token')
@@ -54,7 +74,7 @@ request.interceptors.response.use(
       localStorage.removeItem('access_token')
       window.location.href = '/login'
     }
-    return Promise.reject(error)
+    return Promise.reject(new Error(resolveHttpErrorMessage(error)))
   }
 )
 

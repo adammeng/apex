@@ -13,10 +13,12 @@ from pydantic import BaseModel
 
 from ..core.config import get_settings
 from ..core.jwt import create_access_token, decode_access_token
+from ..core.logging import get_logger
 from ..schemas.response import ApiResponse
 from ..services.feishu_auth import exchange_code_for_user
 
 router = APIRouter(prefix="/auth", tags=["鉴权"])
+logger = get_logger(__name__)
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -62,6 +64,7 @@ async def feishu_code2token(body: CodeExchangeRequest):
     try:
         user_info = await exchange_code_for_user(body.code)
     except Exception as e:
+        logger.warning(f"飞书 code 换 JWT 失败: {e}")
         raise HTTPException(status_code=400, detail=f"飞书授权失败: {e}")
 
     token = create_access_token(
