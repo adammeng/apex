@@ -1,13 +1,15 @@
 import { Spin } from 'antd'
 import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '../stores/auth'
-import { silentLogin, mockSilentLogin, fetchMe } from '../services/auth'
+import { silentLogin, mockSilentLogin, fetchMe, isFeishuContainer } from '../services/auth'
 import type { ReactNode } from 'react'
-
-const isDev = import.meta.env.DEV
 
 interface RequireAuthProps {
   children: ReactNode
+}
+
+function shouldUseMockLogin() {
+  return import.meta.env.DEV && !isFeishuContainer()
 }
 
 /**
@@ -38,6 +40,12 @@ export default function RequireAuth({ children }: RequireAuthProps) {
         if (!user) {
           try {
             const me = await fetchMe()
+            // 如果当前已处于飞书环境，但本地还残留 mock token，强制重新走真实静默登录。
+            if (isFeishuContainer() && me.open_id === 'mock_open_id_dev') {
+              logout()
+              await doSilentLogin()
+              return
+            }
             setUser(me)
           } catch {
             // token 过期或无效，重新走静默登录
@@ -54,7 +62,9 @@ export default function RequireAuth({ children }: RequireAuthProps) {
 
     async function doSilentLogin() {
       try {
-        const accessToken = isDev ? await mockSilentLogin() : await silentLogin()
+        const accessToken = shouldUseMockLogin()
+          ? await mockSilentLogin()
+          : await silentLogin()
         setToken(accessToken)
         const me = await fetchMe()
         setUser(me)

@@ -2,6 +2,7 @@ import request from './request'
 import type { UserInfo } from '../stores/auth'
 
 export type { UserInfo }
+const FEISHU_SDK_URL = 'https://lf1-cdn-tos.bytegoofy.com/goofy/lark/op/h5-js-sdk-1.5.43.js'
 
 /**
  * 飞书 JS SDK 类型声明（H5 内嵌应用环境）
@@ -9,6 +10,7 @@ export type { UserInfo }
  */
 declare global {
   interface Window {
+    __apexFeishuSdkLoading?: Promise<void>
     h5sdk?: {
       ready: (cb: () => void) => void
       getAuthCode: (params: {
@@ -20,11 +22,64 @@ declare global {
   }
 }
 
+export function isFeishuContainer() {
+  if (typeof window === 'undefined') {
+    return false
+  }
+
+  if (window.h5sdk) {
+    return true
+  }
+
+  const ua = window.navigator.userAgent
+  return /Lark|Feishu/i.test(ua)
+}
+
+async function ensureFeishuSdk() {
+  if (typeof window === 'undefined') {
+    throw new Error('当前环境不支持飞书 SDK')
+  }
+
+  if (window.h5sdk) {
+    return
+  }
+
+  if (!isFeishuContainer()) {
+    throw new Error('非飞书客户端环境')
+  }
+
+  if (!window.__apexFeishuSdkLoading) {
+    window.__apexFeishuSdkLoading = new Promise<void>((resolve, reject) => {
+      const existingScript = document.querySelector<HTMLScriptElement>(
+        `script[data-sdk="feishu-h5"][src="${FEISHU_SDK_URL}"]`
+      )
+
+      if (existingScript) {
+        existingScript.addEventListener('load', () => resolve(), { once: true })
+        existingScript.addEventListener('error', () => reject(new Error('飞书 SDK 加载失败')), { once: true })
+        return
+      }
+
+      const script = document.createElement('script')
+      script.src = FEISHU_SDK_URL
+      script.async = true
+      script.dataset.sdk = 'feishu-h5'
+      script.onload = () => resolve()
+      script.onerror = () => reject(new Error('飞书 SDK 加载失败'))
+      document.head.appendChild(script)
+    })
+  }
+
+  await window.__apexFeishuSdkLoading
+}
+
 /**
  * 静默登录：在飞书客户端内通过 JS SDK 获取授权码，换取 JWT。
  * 全程无 UI，用户完全无感知。
  */
-export function silentLogin(): Promise<string> {
+export async function silentLogin(): Promise<string> {
+  await ensureFeishuSdk()
+
   return new Promise((resolve, reject) => {
     const appId = import.meta.env.VITE_FEISHU_APP_ID
 
