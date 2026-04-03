@@ -2,15 +2,17 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# 系统依赖
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# 系统依赖（使用阿里云 apt 镜像源加速）
+RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
+    sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list 2>/dev/null || true && \
+    apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# 依赖安装
+# 依赖安装（使用阿里云 pip 镜像源加速）
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ -r requirements.txt
 
 # 应用代码
 COPY app/ ./app/
