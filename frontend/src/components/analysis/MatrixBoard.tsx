@@ -1,4 +1,5 @@
-import { Empty, Spin } from 'antd'
+import { FullscreenExitOutlined } from '@ant-design/icons'
+import { Button, Empty, Spin, Tooltip } from 'antd'
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { MatrixCell, MatrixQueryResult } from '../../services/analysis'
@@ -183,6 +184,20 @@ const MatrixBoard = forwardRef<MatrixBoardHandle, MatrixBoardProps>(function Mat
   // ── 渲染 ──────────────────────────────────────────────────────────────────
   return (
     <div ref={boardRef} className="analysis-board analysis-board--matrix">
+      {isFullscreen ? (
+        <div className="analysis-board__toolbar">
+          <Tooltip title="退出全屏">
+            <Button
+              type="text"
+              size="small"
+              icon={<FullscreenExitOutlined />}
+              className="analysis-action-btn"
+              aria-label="退出全屏"
+              onClick={() => void toggleFullscreen()}
+            />
+          </Tooltip>
+        </div>
+      ) : null}
 
       {/*
         ┌─────────────────────────────────────────────────────────────┐

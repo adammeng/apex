@@ -1,4 +1,5 @@
-import { Empty, Spin, Tag } from 'antd'
+import { FullscreenExitOutlined } from '@ant-design/icons'
+import { Button, Empty, Spin, Tag, Tooltip } from 'antd'
 import { forwardRef, useCallback, useImperativeHandle, useRef } from 'react'
 import React from 'react'
 import type { PipelineQueryResult, TooltipDrug } from '../../services/analysis'
@@ -101,6 +102,21 @@ const PipelineBoard = forwardRef<PipelineBoardHandle, PipelineBoardProps>(functi
 
   return (
     <div ref={boardRef} className="analysis-board analysis-board--pipeline">
+      {isFullscreen ? (
+        <div className="analysis-board__toolbar">
+          <Tooltip title="退出全屏">
+            <Button
+              type="text"
+              size="small"
+              icon={<FullscreenExitOutlined />}
+              className="analysis-action-btn"
+              aria-label="退出全屏"
+              onClick={() => void toggleFullscreen()}
+            />
+          </Tooltip>
+        </div>
+      ) : null}
+
       <div className="pipeline-scroll">
         <table className="pipeline-table" style={{ '--pipeline-lane-count': laneCount } as React.CSSProperties}>
           <thead>

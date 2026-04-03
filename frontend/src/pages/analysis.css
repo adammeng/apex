@@ -257,6 +257,12 @@
   gap: 8px;
 }
 
+.analysis-board__toolbar .analysis-action-btn.ant-btn-text {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
 .analysis-board--matrix {
   min-height: 0;
 }
