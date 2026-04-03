@@ -105,8 +105,16 @@ export function DiseaseTreeFilter({ diseaseTree, value, onChange }: DiseaseTreeF
       treeNodeFilterProp="searchText"
       placeholder="选择疾病"
       style={{ width: FILTER_WIDTH }}
-      dropdownStyle={{ maxHeight: 420, overflow: 'auto', minWidth: 320 }}
-      dropdownRender={(menu) => (
+      styles={{
+        popup: {
+          root: {
+            maxHeight: 420,
+            overflow: 'auto',
+            minWidth: 320,
+          },
+        },
+      }}
+      popupRender={(menu) => (
         <>
           <SelectAllRow
             allCount={allDiseases.length}
@@ -152,7 +160,7 @@ export function StageFilter({ stages, value, onChange }: StageFilterProps) {
       value={value}
       optionFilterProp="label"
       onChange={onChange}
-      dropdownRender={(menu) => (
+      popupRender={(menu) => (
         <>
           <SelectAllRow
             allCount={allValues.length}
@@ -234,7 +242,7 @@ export function TargetMultiSelect({
       options={options}
       optionFilterProp="label"
       onChange={onChange}
-      dropdownRender={(menu) => (
+      popupRender={(menu) => (
         <>
           <SelectAllRow
             allCount={allTargets.length}
