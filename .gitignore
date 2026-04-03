@@ -24,10 +24,10 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
-# Env — 各子目录自己管理，不追踪真实凭据
+# Env — 开发环境凭据不提交，生产配置随代码管理，密钥覆盖文件不提交
 backend/.env
 backend/.env.local
-backend/.env.production
+backend/.env.production.local
 frontend/.env.local
 frontend/.env.*.local
 frontend/.cert/

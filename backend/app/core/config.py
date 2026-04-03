@@ -1,13 +1,20 @@
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # backend/ 目录的绝对路径（config.py 在 backend/app/core/ 下，上三级即 backend/）
 _BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
+
+_DEV_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
 
 
 class Settings(BaseSettings):
@@ -24,12 +31,17 @@ class Settings(BaseSettings):
 
     # API
     api_prefix: str = "/api"
-    allowed_origins: list[str] = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ]
+    # 可通过环境变量 ALLOWED_ORIGINS 传入逗号分隔的域名列表
+    # 生产示例：ALLOWED_ORIGINS=https://apex.adammeng.xyz
+    allowed_origins: List[str] = _DEV_ORIGINS
+
+    @field_validator("allowed_origins", mode="before")
+    @classmethod
+    def parse_allowed_origins(cls, v: object) -> List[str]:
+        """支持逗号分隔字符串或列表两种格式"""
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v  # type: ignore[return-value]
 
     # JWT
     jwt_secret: str = "change-me-in-production"
@@ -123,9 +135,14 @@ def get_settings() -> Settings:
     if env_file_override:
         env_files = (env_file_override,)
     else:
-        env_files = tuple(
-            str(path)
-            for path in (_BACKEND_DIR / ".env", _BACKEND_DIR / ".env.local")
-            if path.exists()
-        )
+        # 加载顺序（后者覆盖前者同名键）：
+        #   开发：.env → .env.local
+        #   生产（docker）：环境变量由 docker compose env_file 注入，无需读文件
+        #   服务器手动维护的密钥覆盖：.env.production.local（gitignore，不提交）
+        candidates = [
+            _BACKEND_DIR / ".env",
+            _BACKEND_DIR / ".env.local",
+            _BACKEND_DIR / ".env.production.local",
+        ]
+        env_files = tuple(str(p) for p in candidates if p.exists())
     return Settings(_env_file=env_files or None)
