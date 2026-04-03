@@ -29,6 +29,7 @@ backend/.env
 backend/.env.local
 frontend/.env.local
 frontend/.env.*.local
+frontend/.cert/
 
 # Data (parquet files are large, don't track)
 parquet/

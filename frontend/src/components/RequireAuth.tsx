@@ -17,7 +17,7 @@ function shouldUseMockLogin() {
  *
  * 生产（飞书客户端内）：
  *   1. 有 token → 直接渲染
- *   2. 无 token → 调飞书 JS SDK getAuthCode → POST /auth/feishu/code2token → 存 JWT → 渲染
+ *   2. 无 token → 调飞书 JS SDK requestAuthCode → POST /auth/feishu/code2token → 存 JWT → 渲染
  *
  * 开发（本地浏览器）：
  *   1. 有 token → 直接渲染
@@ -86,11 +86,36 @@ export default function RequireAuth({ children }: RequireAuthProps) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#999',
-          fontSize: 14,
+          flexDirection: 'column',
+          gap: 12,
+          padding: 24,
         }}
       >
-        登录失败，请重新打开应用
+        <div
+          style={{
+            border: '1px solid #ffccc7',
+            background: '#fff2f0',
+            color: '#cf1322',
+            borderRadius: 12,
+            padding: '16px 20px',
+            fontSize: 16,
+            fontWeight: 600,
+          }}
+        >
+          授权失败
+        </div>
+        <div
+          style={{
+            maxWidth: 720,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            color: '#8c8c8c',
+            fontSize: 14,
+            textAlign: 'center',
+          }}
+        >
+          {error}
+        </div>
       </div>
     )
   }

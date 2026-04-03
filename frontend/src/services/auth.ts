@@ -2,18 +2,42 @@ import request from './request'
 import type { UserInfo } from '../stores/auth'
 
 export type { UserInfo }
-const FEISHU_SDK_URL = 'https://lf1-cdn-tos.bytegoofy.com/goofy/lark/op/h5-js-sdk-1.5.43.js'
+
+function stringifySdkError(err: unknown) {
+  if (err instanceof Error) {
+    return err.message
+  }
+
+  if (typeof err === 'string') {
+    return err
+  }
+
+  if (err && typeof err === 'object') {
+    try {
+      return JSON.stringify(err)
+    } catch {
+      return '[object]'
+    }
+  }
+
+  return String(err)
+}
 
 /**
  * 飞书 JS SDK 类型声明（H5 内嵌应用环境）
- * 实际由飞书客户端注入 window.h5sdk
+ * 参考 s_employee_front，统一使用静态注入的 H5 SDK。
  */
 declare global {
   interface Window {
-    __apexFeishuSdkLoading?: Promise<void>
-    h5sdk?: {
-      ready: (cb: () => void) => void
-      getAuthCode: (params: {
+    h5sdk?: Record<string, unknown>
+    tt?: {
+      requestAccess?: (params: {
+        appID: string
+        scopeList?: string[]
+        success: (res: { code: string }) => void
+        fail: (err: unknown) => void
+      }) => void
+      requestAuthCode: (params: {
         appId: string
         success: (res: { code: string }) => void
         fail: (err: unknown) => void
@@ -40,37 +64,32 @@ async function ensureFeishuSdk() {
     throw new Error('当前环境不支持飞书 SDK')
   }
 
-  if (window.h5sdk) {
-    return
-  }
-
   if (!isFeishuContainer()) {
     throw new Error('非飞书客户端环境')
   }
 
-  if (!window.__apexFeishuSdkLoading) {
-    window.__apexFeishuSdkLoading = new Promise<void>((resolve, reject) => {
-      const existingScript = document.querySelector<HTMLScriptElement>(
-        `script[data-sdk="feishu-h5"][src="${FEISHU_SDK_URL}"]`
-      )
+  if (window.h5sdk && window.tt) {
+    return
+  }
 
-      if (existingScript) {
-        existingScript.addEventListener('load', () => resolve(), { once: true })
-        existingScript.addEventListener('error', () => reject(new Error('飞书 SDK 加载失败')), { once: true })
+  await new Promise<void>((resolve, reject) => {
+    let attempts = 0
+    const maxAttempts = 60
+
+    const timer = window.setInterval(() => {
+      if (window.h5sdk && window.tt) {
+        window.clearInterval(timer)
+        resolve()
         return
       }
 
-      const script = document.createElement('script')
-      script.src = FEISHU_SDK_URL
-      script.async = true
-      script.dataset.sdk = 'feishu-h5'
-      script.onload = () => resolve()
-      script.onerror = () => reject(new Error('飞书 SDK 加载失败'))
-      document.head.appendChild(script)
-    })
-  }
-
-  await window.__apexFeishuSdkLoading
+      attempts += 1
+      if (attempts >= maxAttempts) {
+        window.clearInterval(timer)
+        reject(new Error('飞书 SDK 加载超时'))
+      }
+    }, 100)
+  })
 }
 
 /**
@@ -82,29 +101,40 @@ export async function silentLogin(): Promise<string> {
 
   return new Promise((resolve, reject) => {
     const appId = import.meta.env.VITE_FEISHU_APP_ID
+    const requestAccessApi = window.tt?.requestAccess
+    const requestAuthCodeApi = window.tt?.requestAuthCode
 
-    const sdk = window.h5sdk
-    if (!sdk) {
-      reject(new Error('非飞书客户端环境，h5sdk 不存在'))
+    if (!requestAccessApi && !requestAuthCodeApi) {
+      reject(new Error('飞书客户端环境异常，授权接口不存在'))
       return
     }
 
-    sdk.ready(() => {
-      sdk.getAuthCode({
-        appId,
-        success: async ({ code }) => {
-          try {
-            const res = await request.post<{ data: { access_token: string } }>(
-              '/auth/feishu/code2token',
-              { code }
-            )
-            resolve(res.data.data.access_token)
-          } catch (err) {
-            reject(err)
-          }
-        },
-        fail: (err) => reject(err),
+    const exchangeCode = async (code: string) => {
+      try {
+        const res = await request.post<{ data: { access_token: string } }>(
+          '/auth/feishu/code2token',
+          { code }
+        )
+        resolve(res.data.data.access_token)
+      } catch (err) {
+        reject(err)
+      }
+    }
+
+    if (requestAccessApi) {
+      requestAccessApi({
+        appID: appId,
+        scopeList: [],
+        success: ({ code }) => void exchangeCode(code),
+        fail: (err) => reject(new Error(`飞书授权失败: ${stringifySdkError(err)}`)),
       })
+      return
+    }
+
+    requestAuthCodeApi?.({
+      appId,
+      success: ({ code }) => void exchangeCode(code),
+      fail: (err) => reject(new Error(`飞书授权失败: ${stringifySdkError(err)}`)),
     })
   })
 }
