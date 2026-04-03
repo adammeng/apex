@@ -68,7 +68,12 @@ export default function App() {
           }
         }}
       >
-        <BrowserRouter>
+        <BrowserRouter
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true
+          }}
+        >
           <RequireAuth>
             <AppLayout>
               <Routes>
