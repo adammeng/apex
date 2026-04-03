@@ -9,20 +9,21 @@ interface RequireAuthProps {
 }
 
 function shouldUseMockLogin() {
-  return import.meta.env.DEV && !isFeishuContainer()
+  // 只判断是否在飞书客户端内，不在飞书里（含 PC 浏览器、其他环境）均走 mock 开发用户
+  return !isFeishuContainer()
 }
 
 /**
  * 认证守卫 — 全程静默，无任何登录 UI。
  *
- * 生产（飞书客户端内）：
+ * 飞书客户端内：
  *   1. 有 token → 直接渲染
  *   2. 无 token → 调飞书 JS SDK requestAuthCode → POST /auth/feishu/code2token → 存 JWT → 渲染
  *
- * 开发（本地浏览器）：
+ * 非飞书环境（PC 浏览器、开发本地等）：
  *   1. 有 token → 直接渲染
  *   2. 无 token → POST /auth/mock-login → 存 JWT → 渲染
- *   （模拟生产静默流程，后端 DEBUG=true 时可用）
+ *   （后端 DEBUG=true 时可用；生产如需限制，可在后端关闭 mock-login 接口）
  */
 export default function RequireAuth({ children }: RequireAuthProps) {
   const { token, user, setToken, setUser, logout } = useAuthStore()

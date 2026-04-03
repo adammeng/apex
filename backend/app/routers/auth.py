@@ -88,17 +88,12 @@ async def get_me(user: dict = Depends(get_current_user)):
     )
 
 
-@router.post("/mock-login", summary="Mock 登录（仅 debug 模式）")
+@router.post("/mock-login", summary="非飞书环境登录（PC 浏览器访问用）")
 async def mock_login():
     """
-    本地开发时模拟静默登录，返回真实结构的 JWT。
-    与生产流程完全一致，只是跳过飞书 API 调用。
-    仅 DEBUG=true 时可用。
+    非飞书客户端环境（PC 浏览器等）访问时，自动走此接口获取开发用户 JWT。
+    内部工具，无需对外暴露真实飞书凭据。
     """
-    settings = get_settings()
-    if not settings.debug:
-        raise HTTPException(status_code=403, detail="仅开发模式可用")
-
     token = create_access_token(
         {
             "open_id": "mock_open_id_dev",
