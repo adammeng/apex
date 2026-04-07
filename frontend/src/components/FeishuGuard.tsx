@@ -24,6 +24,11 @@ interface FeishuGuardProps {
 }
 
 export default function FeishuGuard({ children }: FeishuGuardProps) {
+  // 开发模式下跳过检测，继续走 mock 登录
+  if (import.meta.env.DEV) {
+    return <>{children}</>
+  }
+
   if (isFeishuContainer()) {
     return <>{children}</>
   }
