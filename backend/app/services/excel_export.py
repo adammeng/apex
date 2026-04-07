@@ -101,13 +101,11 @@ def _sort_records(records: Iterable[dict]) -> List[dict]:
 def build_matrix_export_rows(
     records: Sequence[dict],
     selected_targets: Optional[Sequence[str]] = None,
-    top_n: Optional[int] = None,
     hide_no_combo: bool = False,
 ) -> List[List[object]]:
     matrix_data = compute_matrix(
         records,
         selected_targets=selected_targets,
-        top_n=top_n,
         hide_no_combo=hide_no_combo,
     )
     display_targets = set(matrix_data["targets"])

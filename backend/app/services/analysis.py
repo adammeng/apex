@@ -23,10 +23,6 @@ MATRIX_STAGE_MAP = {item["value"]: item["matrix"] for item in STAGE_ITEMS}
 PIPELINE_STAGE_MAP = {item["value"]: item["pipeline"] for item in STAGE_ITEMS}
 PIPELINE_LANES = ["PreC", "IND", "Phase 1", "Phase 2", "Phase 3", "BLA", "Market"]
 INVALID_TARGETS = {"", "NOT AVAILABLE", "N/A", "NA", "UNKNOWN"}
-DEFAULT_MATRIX_TOP_N = 50
-OPPORTUNITY_MIN_SCORE = 2.0
-
-
 def get_stage_items() -> List[dict]:
     return STAGE_ITEMS
 
@@ -241,24 +237,11 @@ def sort_drugs(records: Sequence[dict]) -> List[dict]:
     )
 
 
-def _resolve_matrix_top_n(
-    selected_targets: Optional[Sequence[str]],
-    top_n: Optional[int],
-) -> Optional[int]:
-    if selected_targets:
-        return None
-    if top_n is not None:
-        return top_n
-    return DEFAULT_MATRIX_TOP_N
-
-
 def compute_matrix(
     records: Sequence[dict],
     selected_targets: Optional[Sequence[str]] = None,
-    top_n: Optional[int] = None,
     hide_no_combo: bool = False,
 ) -> dict:
-    resolved_top_n = _resolve_matrix_top_n(selected_targets, top_n)
     target_max: Dict[str, float] = defaultdict(float)
     target_stage: Dict[str, str] = {}
     pair_scores: Dict[Tuple[str, str], float] = defaultdict(float)
@@ -294,7 +277,7 @@ def compute_matrix(
         target_set = set(selected_targets)
         display_targets = [target for target in sorted_targets if target in target_set]
     else:
-        display_targets = sorted_targets[:resolved_top_n] if resolved_top_n else sorted_targets
+        display_targets = sorted_targets
 
     if hide_no_combo:
         filtered_targets = []
@@ -324,12 +307,6 @@ def compute_matrix(
         target: {"score": target_max[target], "stage_value": target_stage.get(target)}
         for target in display_targets
     }
-    opportunity_targets = [
-        target
-        for target in display_targets
-        if target_max[target] >= OPPORTUNITY_MIN_SCORE and not target_has_combo.get(target, False)
-    ]
-
     return {
         "targets": display_targets,
         "single_max": single_max,
@@ -338,8 +315,6 @@ def compute_matrix(
         "data_version": extract_data_version(records),
         "available_target_total": len(sorted_targets),
         "display_target_total": len(display_targets),
-        "opportunity_targets": opportunity_targets,
-        "default_top_n": DEFAULT_MATRIX_TOP_N,
     }
 
 

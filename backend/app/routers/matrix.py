@@ -32,7 +32,6 @@ class MatrixQueryParams(BaseModel):
     stages: Optional[List[str]] = None
     min_stage_score: Optional[float] = None
     targets: Optional[List[str]] = None
-    top_n: Optional[int] = None
     hide_no_combo: bool = False
 
 
@@ -74,7 +73,6 @@ async def matrix_query(params: MatrixQueryParams):
     result = compute_matrix(
         records,
         selected_targets=params.targets,
-        top_n=params.top_n,
         hide_no_combo=params.hide_no_combo,
     )
 
@@ -111,7 +109,6 @@ async def matrix_export(
     stages: Optional[List[str]] = Query(default=None),
     min_stage_score: Optional[float] = None,
     targets: Optional[List[str]] = Query(default=None),
-    top_n: Optional[int] = None,
     hide_no_combo: bool = False,
 ):
     stage_filter = normalize_stage_filter(stages, min_stage_score)
@@ -124,7 +121,6 @@ async def matrix_export(
     rows = build_matrix_export_rows(
         records,
         selected_targets=targets,
-        top_n=top_n,
         hide_no_combo=hide_no_combo,
     )
     content = build_excel_bytes(

@@ -40,29 +40,27 @@ export default function PipelinePage() {
     if (!targetData || !pipeline.selectedDisease) return
 
     const availableTargets = targetData.targets
-    const nextSelectedTargets = pipeline.selectedTargets.filter((target) => availableTargets.includes(target))
 
-    if (pipeline.targetsHydratedDisease === pipeline.selectedDisease) {
-      if (nextSelectedTargets.length !== pipeline.selectedTargets.length) {
-        setPipelineTargets(nextSelectedTargets)
-      }
+    if (pipeline.targetsHydratedDisease !== pipeline.selectedDisease) {
+      setPipelineTargets(availableTargets)
+      markPipelineTargetsHydrated(pipeline.selectedDisease)
       return
     }
 
-    if (nextSelectedTargets.length > 0) {
-      setPipelineTargets(nextSelectedTargets)
-    } else {
-      setPipelineTargets(availableTargets)
-    }
+    const nextSelectedTargets = pipeline.selectedTargets.filter((target) =>
+      availableTargets.includes(target)
+    )
 
-    markPipelineTargetsHydrated(pipeline.selectedDisease)
+    if (nextSelectedTargets.length !== pipeline.selectedTargets.length) {
+      setPipelineTargets(nextSelectedTargets)
+    }
   }, [
     markPipelineTargetsHydrated,
     pipeline.selectedDisease,
     pipeline.selectedTargets,
     pipeline.targetsHydratedDisease,
     setPipelineTargets,
-    targetData,
+    targetData
   ])
 
   const targetGroups = useMemo(() => targetData?.groups ?? [], [targetData])

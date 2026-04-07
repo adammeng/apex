@@ -93,7 +93,7 @@ npm run lint
 ```text
 frontend/
 ├── docs/                # 前端专项文档
-│   └── table-performance.md   # Table 性能优化方案
+│   ├── table-performance.md   # Table 性能优化方案
 ├── public/              # 静态资源
 ├── src/
 │   ├── components/      # 布局与通用组件

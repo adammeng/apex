@@ -8,15 +8,13 @@ interface MatrixTooltipCardProps {
   colTarget: string
   diseases?: string[]
   stages?: string[]
-  isOpportunity?: boolean
 }
 
 export default function MatrixTooltipCard({
   rowTarget,
   colTarget,
   diseases,
-  stages,
-  isOpportunity = false
+  stages
 }: MatrixTooltipCardProps) {
   const { data, isLoading } = useQuery({
     queryKey: ['matrix-tooltip', rowTarget, colTarget, diseases, stages],
@@ -49,9 +47,7 @@ export default function MatrixTooltipCard({
 
   const title = rowTarget === colTarget ? rowTarget : `${rowTarget} + ${colTarget}`
   const subtitle = rowTarget === colTarget
-    ? isOpportunity
-      ? '单靶点成熟且暂无组合'
-      : '单靶点最高阶段明细'
+    ? '单靶点最高阶段明细'
     : '组合竞争明细'
 
   return (
@@ -69,7 +65,7 @@ export default function MatrixTooltipCard({
           {data.drugs.map((drug, index) => (
             <div
               key={`${drug.drug_id}-${drug.nct_id}-${drug.disease}-${drug.stage_value}-${index}`}
-              className={`matrix-tooltip-card__item${isOpportunity ? ' matrix-tooltip-card__item--opportunity' : ''}`}
+              className="matrix-tooltip-card__item"
             >
               <div className="matrix-tooltip-card__item-top">
                 <span className="matrix-tooltip-card__item-name">{getDrugDisplayName(drug)}</span>
