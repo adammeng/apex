@@ -1,6 +1,6 @@
 import { Checkbox, Select, TreeSelect } from 'antd'
 import type { DefaultOptionType } from 'antd/es/select'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { DiseaseOption, DiseaseTree, StageItem, TargetGroup } from '../../services/meta'
 
 interface DiseaseTreeFilterProps {
@@ -30,6 +30,14 @@ interface TargetMultiSelectProps {
 
 // 统一触发器宽度
 const FILTER_WIDTH = 200
+
+function EllipsisOptionLabel({ text }: { text: string }) {
+  return (
+    <span className="filter-option-label filter-tree-label" title={text}>
+      {text}
+    </span>
+  )
+}
 
 function SelectAllRow({
   allCount,
@@ -78,12 +86,12 @@ export function DiseaseTreeFilter({ diseaseTree, value, onChange }: DiseaseTreeF
   const treeData = useMemo(
     () =>
       diseaseTree.map((area) => ({
-        title: area.ta,
+        title: <EllipsisOptionLabel text={area.ta} />,
         value: `ta::${area.ta}`,
         selectable: false,
         searchText: area.ta,
         children: area.children.map((child) => ({
-          title: child.name,
+          title: <EllipsisOptionLabel text={child.name} />,
           value: child.name,
           searchText: `${area.ta} ${child.name}`,
         })),
@@ -105,12 +113,13 @@ export function DiseaseTreeFilter({ diseaseTree, value, onChange }: DiseaseTreeF
       treeNodeFilterProp="searchText"
       placeholder="选择疾病"
       style={{ width: FILTER_WIDTH }}
+      popupMatchSelectWidth={false}
+      popupClassName="disease-tree-dropdown"
       styles={{
         popup: {
           root: {
             maxHeight: 420,
             overflow: 'auto',
-            minWidth: 320,
           },
         },
       }}
@@ -182,25 +191,130 @@ export function DiseaseSingleSelect({
   value,
   onChange,
 }: DiseaseSingleSelectProps) {
-  const selectOptions = useMemo(
+  const [searchValue, setSearchValue] = useState('')
+  const [activeGroupKey, setActiveGroupKey] = useState<string | null>(null)
+  const popupBodyRef = useRef<HTMLDivElement | null>(null)
+
+  // 按 ta 分组，构造 grouped options
+  const groups = useMemo(() => {
+    const map = new Map<string, string[]>()
+    for (const item of options) {
+      const key = item.ta || '其他'
+      if (!map.has(key)) map.set(key, [])
+      map.get(key)!.push(item.name)
+    }
+    return Array.from(map.entries()).map(([key, diseases]) => ({ key, diseases }))
+  }, [options])
+
+  const groupedOptions = useMemo<DefaultOptionType[]>(
     () =>
-      options.map((item) => ({
-        label: `${item.name}`,
-        filterLabel: `${item.name} ${item.ta}`,
-        value: item.name,
+      groups.map((group) => ({
+        label: (
+          <span className="filter-option-group-label" data-disease-group={group.key}>
+            {group.key}
+          </span>
+        ),
+        options: group.diseases.map((name) => ({
+          label: name,
+          filterLabel: `${name} ${group.key}`,
+          plainLabel: name,
+          value: name,
+        })),
       })),
-    [options]
+    [groups]
   )
+
+  const visibleGroupKeys = useMemo(() => {
+    const keyword = searchValue.trim().toLowerCase()
+    if (!keyword) return groups.map((g) => g.key)
+    return groups
+      .filter((g) => g.diseases.some((d) => d.toLowerCase().includes(keyword)) || g.key.toLowerCase().includes(keyword))
+      .map((g) => g.key)
+  }, [groups, searchValue])
+
+  useEffect(() => {
+    setActiveGroupKey(visibleGroupKeys[0] ?? null)
+  }, [visibleGroupKeys])
+
+  useEffect(() => {
+    const popupBody = popupBodyRef.current
+    if (!popupBody) return
+
+    const scrollContainer =
+      popupBody.querySelector<HTMLElement>('.rc-virtual-list-holder') ?? popupBody
+
+    const handleScroll = () => {
+      const anchors = Array.from(
+        popupBody.querySelectorAll<HTMLElement>('[data-disease-group]')
+      )
+      if (anchors.length === 0) return
+      const containerTop = scrollContainer.getBoundingClientRect().top
+      const current = anchors.find(
+        (anchor) => anchor.getBoundingClientRect().bottom >= containerTop + 8
+      )
+      if (current?.dataset.diseaseGroup) {
+        setActiveGroupKey(current.dataset.diseaseGroup)
+      }
+    }
+
+    handleScroll()
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true })
+    return () => scrollContainer.removeEventListener('scroll', handleScroll)
+  }, [groups, searchValue])
+
+  function scrollToGroup(groupKey: string) {
+    setActiveGroupKey(groupKey)
+    const anchor = popupBodyRef.current?.querySelector<HTMLElement>(
+      `[data-disease-group="${groupKey}"]`
+    )
+    anchor?.scrollIntoView({ block: 'start' })
+  }
 
   return (
     <Select
       showSearch
+      virtual={false}
       value={value}
       placeholder="请选择疾病"
       style={{ width: FILTER_WIDTH }}
-      options={selectOptions}
-      optionFilterProp="filterLabel"
+      popupMatchSelectWidth={false}
+      listHeight={360}
+      options={groupedOptions}
+      filterOption={(input, option) =>
+        String((option as DefaultOptionType & { filterLabel?: string })?.filterLabel ?? '')
+          .toLowerCase()
+          .includes(input.toLowerCase())
+      }
+      optionRender={(option) => <EllipsisOptionLabel text={String(option.data.plainLabel ?? '')} />}
+      onSearch={setSearchValue}
       onChange={onChange}
+      popupRender={(menu) => (
+        <div className="target-select-dropdown">
+          <div className="target-select-dropdown__body">
+            <div ref={popupBodyRef} className="target-select-dropdown__menu">
+              {menu}
+            </div>
+            <div className="target-select-dropdown__index" aria-label="疾病分组索引">
+              {visibleGroupKeys.map((groupKey) => {
+                // 取首字母或首个汉字作为索引标签
+                const label = groupKey.charAt(0).toUpperCase()
+                return (
+                  <button
+                    key={groupKey}
+                    type="button"
+                    title={groupKey}
+                    className={`target-select-dropdown__index-item${activeGroupKey === groupKey ? ' is-active' : ''}`}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => scrollToGroup(groupKey)}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     />
   )
 }
@@ -213,12 +327,21 @@ export function TargetMultiSelect({
   onChange,
   disabled,
 }: TargetMultiSelectProps) {
+  const [searchValue, setSearchValue] = useState('')
+  const [activeGroupKey, setActiveGroupKey] = useState<string | null>(null)
+  const popupBodyRef = useRef<HTMLDivElement | null>(null)
+
   const options = useMemo<DefaultOptionType[]>(
     () =>
       groups.map((group) => ({
-        label: group.key,
+        label: (
+          <span className="filter-option-group-label" data-target-group={group.key}>
+            {group.key}
+          </span>
+        ),
         options: group.targets.map((target) => ({
           label: target,
+          plainLabel: target,
           value: target,
         })),
       })),
@@ -226,7 +349,57 @@ export function TargetMultiSelect({
   )
 
   const allTargets = useMemo(() => groups.flatMap((group) => group.targets), [groups])
+  const visibleGroupKeys = useMemo(() => {
+    const keyword = searchValue.trim().toLowerCase()
+    if (!keyword) {
+      return groups.map((group) => group.key)
+    }
+
+    return groups
+      .filter((group) =>
+        group.targets.some((target) => target.toLowerCase().includes(keyword))
+      )
+      .map((group) => group.key)
+  }, [groups, searchValue])
   const label = triggerLabel(value.length, allTargets.length)
+
+  useEffect(() => {
+    setActiveGroupKey(visibleGroupKeys[0] ?? null)
+  }, [visibleGroupKeys])
+
+  useEffect(() => {
+    const popupBody = popupBodyRef.current
+    if (!popupBody) return
+
+    const scrollContainer =
+      popupBody.querySelector<HTMLElement>('.rc-virtual-list-holder') ?? popupBody
+
+    const handleScroll = () => {
+      const anchors = Array.from(
+        popupBody.querySelectorAll<HTMLElement>('[data-target-group]')
+      )
+      if (anchors.length === 0) return
+
+      const containerTop = scrollContainer.getBoundingClientRect().top
+      const currentAnchor = anchors.find(
+        (anchor) => anchor.getBoundingClientRect().bottom >= containerTop + 8
+      )
+      if (currentAnchor?.dataset.targetGroup) {
+        setActiveGroupKey(currentAnchor.dataset.targetGroup)
+      }
+    }
+
+    handleScroll()
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true })
+    return () => scrollContainer.removeEventListener('scroll', handleScroll)
+  }, [groups, searchValue])
+
+  function scrollToGroup(groupKey: string) {
+    setActiveGroupKey(groupKey)
+    const popupBody = popupBodyRef.current
+    const anchor = popupBody?.querySelector<HTMLElement>(`[data-target-group="${groupKey}"]`)
+    anchor?.scrollIntoView({ block: 'start' })
+  }
 
   return (
     <Select
@@ -239,19 +412,45 @@ export function TargetMultiSelect({
       value={value}
       placeholder="请选择靶点"
       style={{ width: FILTER_WIDTH }}
+      virtual={false}
+      popupMatchSelectWidth={false}
+      listHeight={360}
       options={options}
-      optionFilterProp="label"
+      filterOption={(input, option) =>
+        String((option as DefaultOptionType & { plainLabel?: string })?.plainLabel ?? '')
+          .toLowerCase()
+          .includes(input.toLowerCase())
+      }
+      optionRender={(option) => <EllipsisOptionLabel text={String(option.data.plainLabel ?? '')} />}
+      onSearch={setSearchValue}
       onChange={onChange}
       popupRender={(menu) => (
-        <>
+        <div className="target-select-dropdown">
           <SelectAllRow
             allCount={allTargets.length}
             selectedCount={value.length}
             onSelectAll={() => onChange(allTargets)}
             onClear={() => onChange([])}
           />
-          {menu}
-        </>
+          <div className="target-select-dropdown__body">
+            <div ref={popupBodyRef} className="target-select-dropdown__menu">
+              {menu}
+            </div>
+            <div className="target-select-dropdown__index" aria-label="靶点字母索引">
+              {visibleGroupKeys.map((groupKey) => (
+                <button
+                  key={groupKey}
+                  type="button"
+                  className={`target-select-dropdown__index-item${activeGroupKey === groupKey ? ' is-active' : ''}`}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => scrollToGroup(groupKey)}
+                >
+                  {groupKey}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     />
   )
