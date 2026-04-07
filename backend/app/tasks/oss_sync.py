@@ -1,8 +1,9 @@
 """
 OSS 数据同步任务
-- 从阿里云 OSS 下载最新 parquet 文件，覆盖写入 backend/parquet/
+- 从阿里云 OSS 下载最新 parquet 文件，写入 backend/parquet/
+- 同时归档到 backend/parquet/YYYYMMDD/ 保留历史快照（对应 data_versions 表）
 - 下载完成后热更新 DuckDB 连接 + 清除 Redis 缓存
-- 写入同步记录到 MySQL sync_jobs 表
+- 写入同步记录到 MySQL sync_jobs 表，写入版本记录到 MySQL data_versions 表
 """
 
 import asyncio
@@ -76,18 +77,31 @@ def _download_from_oss(tmp_dir: Path) -> dict[str, str]:
     return md5_map
 
 
-def _atomic_replace_parquet(tmp_dir: Path, target_dir: Path) -> None:
+def _archive_and_replace_parquet(tmp_dir: Path, target_dir: Path, version: str) -> Path:
     """
-    将临时目录中的文件逐一原子替换到目标目录。
-    策略：先写 .tmp 再 os.replace，单文件级别原子性。
+    将临时目录中的文件：
+    1. 复制到 target_dir/YYYYMMDD/ 归档目录（历史快照）
+    2. 原子替换到 target_dir/ 根目录（DuckDB 实际读取路径）
+
+    Returns:
+        archive_dir: 归档目录的绝对路径
     """
+    archive_dir = target_dir / version
+    archive_dir.mkdir(parents=True, exist_ok=True)
     target_dir.mkdir(parents=True, exist_ok=True)
+
     for tmp_file in tmp_dir.iterdir():
-        dst = target_dir / tmp_file.name
+        # 1. 写入归档目录
+        shutil.copy2(str(tmp_file), str(archive_dir / tmp_file.name))
+
+        # 2. 原子替换到根目录（先写 .tmp 再 os.replace，单文件级别原子）
         tmp_dst = target_dir / (tmp_file.name + ".tmp")
         shutil.copy2(str(tmp_file), str(tmp_dst))
-        os.replace(str(tmp_dst), str(dst))
-        logger.info(f"  写入 {dst.name}")
+        os.replace(str(tmp_dst), str(target_dir / tmp_file.name))
+
+        logger.info(f"  写入 {tmp_file.name}（已归档至 {archive_dir.name}/）")
+
+    return archive_dir
 
 
 async def _create_sync_record(
@@ -121,9 +135,7 @@ async def _create_sync_record(
             )
         await engine.dispose()
         record_id = result.lastrowid
-        logger.info(
-            f"同步记录已创建 id={record_id} version={version} status={status}"
-        )
+        logger.info(f"同步记录已创建 id={record_id} version={version} status={status}")
         return int(record_id) if record_id is not None else None
     except Exception as e:
         logger.warning(f"创建同步记录失败（不影响主流程）: {e}")
@@ -174,6 +186,47 @@ async def _finish_sync_record(
         logger.warning(f"更新同步记录失败（不影响主流程）: {e}")
 
 
+async def _write_data_version(
+    version: str,
+    parquet_dir: Path,
+    md5_map: Optional[dict],
+) -> None:
+    """
+    写入或更新 data_versions 表中的版本记录。
+    同一 version 已存在时跳过（IGNORE），保证幂等。
+    失败仅记录日志，不抛出异常。
+    """
+    try:
+        import json
+
+        import sqlalchemy as sa
+        from sqlalchemy.ext.asyncio import create_async_engine
+
+        settings = get_settings()
+        engine = create_async_engine(settings.mysql_dsn, pool_pre_ping=True)
+        now_utc = datetime.now(timezone.utc)
+
+        async with engine.begin() as conn:
+            await conn.execute(
+                sa.text("""
+                    INSERT IGNORE INTO data_versions
+                        (version, parquet_dir, md5_map, created_at)
+                    VALUES
+                        (:version, :parquet_dir, :md5_map, :created_at)
+                """),
+                {
+                    "version": version,
+                    "parquet_dir": str(parquet_dir.resolve()),
+                    "md5_map": json.dumps(md5_map or {}, ensure_ascii=False),
+                    "created_at": now_utc,
+                },
+            )
+        await engine.dispose()
+        logger.info(f"data_versions 已写入 version={version} dir={parquet_dir}")
+    except Exception as e:
+        logger.warning(f"写入 data_versions 失败（不影响主流程）: {e}")
+
+
 async def run_sync(force: bool = False) -> dict:
     """
     执行完整的 OSS → backend/parquet/ 覆盖 → DuckDB 热更新流程。
@@ -201,8 +254,10 @@ async def run_sync(force: bool = False) -> dict:
         loop = asyncio.get_event_loop()
         md5_map = await loop.run_in_executor(None, _download_from_oss, tmp_dir)
 
-        # 原子替换到 backend/parquet/
-        _atomic_replace_parquet(tmp_dir, settings.parquet_path)
+        # 归档到 parquet/YYYYMMDD/ 并原子替换 backend/parquet/ 根目录
+        archive_dir = _archive_and_replace_parquet(
+            tmp_dir, settings.parquet_path, version
+        )
 
         # 热更新 DuckDB
         from ..core.duckdb_conn import reload_conn
@@ -219,6 +274,7 @@ async def run_sync(force: bool = False) -> dict:
             logger.warning(f"Redis 缓存清理失败: {e}")
 
         await _finish_sync_record(record_id, "success", md5_map)
+        await _write_data_version(version, archive_dir, md5_map)
         logger.info("OSS 数据同步完成")
         return {"status": "success", "msg": "同步完成"}
 
