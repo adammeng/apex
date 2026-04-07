@@ -15,6 +15,37 @@ FEISHU_APP_TOKEN_URL = (
 )
 
 
+def _safe_json(resp: httpx.Response) -> dict:
+    try:
+        body = resp.json()
+        if isinstance(body, dict):
+            return body
+    except Exception:
+        pass
+    return {}
+
+
+def _format_feishu_error(prefix: str, body: dict, resp: httpx.Response) -> str:
+    code = body.get("code")
+    msg = body.get("msg") or body.get("message") or "unknown error"
+    request_id = (
+        body.get("request_id")
+        or body.get("requestId")
+        or resp.headers.get("x-tt-logid")
+        or resp.headers.get("x-request-id")
+        or ""
+    )
+    extras = []
+    if code is not None:
+        extras.append(f"code={code}")
+    if msg:
+        extras.append(f"msg={msg}")
+    if request_id:
+        extras.append(f"request_id={request_id}")
+    extras.append(f"http_status={resp.status_code}")
+    return f"{prefix}: {'; '.join(extras)}"
+
+
 async def get_app_access_token() -> str:
     """获取飞书应用级 access token（tenant_access_token）。"""
     settings = get_settings()
@@ -26,10 +57,11 @@ async def get_app_access_token() -> str:
                 "app_secret": settings.feishu_app_secret,
             },
         )
-        resp.raise_for_status()
-        body = resp.json()
+        body = _safe_json(resp)
+        if resp.status_code >= 400:
+            raise RuntimeError(_format_feishu_error("获取飞书 app_access_token 失败", body, resp))
         if body.get("code") != 0:
-            raise RuntimeError(f"获取飞书 app_access_token 失败: {body.get('msg')}")
+            raise RuntimeError(_format_feishu_error("获取飞书 app_access_token 失败", body, resp))
         return body["tenant_access_token"]
 
 
@@ -47,10 +79,11 @@ async def exchange_code_for_user(code: str) -> dict:
             headers={"Authorization": f"Bearer {app_token}"},
             json={"grant_type": "authorization_code", "code": code},
         )
-        resp.raise_for_status()
-        body = resp.json()
+        body = _safe_json(resp)
+        if resp.status_code >= 400:
+            raise RuntimeError(_format_feishu_error("飞书 code 换 token 失败", body, resp))
         if body.get("code") != 0:
-            raise RuntimeError(f"飞书 code 换 token 失败: {body.get('msg')}")
+            raise RuntimeError(_format_feishu_error("飞书 code 换 token 失败", body, resp))
 
         data = body["data"]
         return {
