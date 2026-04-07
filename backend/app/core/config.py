@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     # API
     api_prefix: str = "/api"
     # 逗号分隔的允许跨域来源，用 str 接收避免 pydantic-settings JSON 解析问题
-    # 生产示例：ALLOWED_ORIGINS=https://apex.adammeng.xyz
+    # 生产示例：ALLOWED_ORIGINS=https://adammeng.xyz
     # 多个：ALLOWED_ORIGINS=https://a.com,https://b.com
     allowed_origins_str: str = ",".join(_DEV_ORIGINS)
 
