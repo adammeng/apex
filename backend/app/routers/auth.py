@@ -5,7 +5,7 @@
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
@@ -76,6 +76,35 @@ async def feishu_code2token(body: CodeExchangeRequest):
         }
     )
     return ApiResponse.ok(data={"access_token": token, "token_type": "bearer"})
+
+
+@router.get("/feishu/launch", summary="飞书网页应用入口跳转")
+async def feishu_launch(
+    code: Optional[str] = Query(default=None),
+    state: Optional[str] = Query(default=None),
+):
+    """
+    作为飞书网页应用的 redirect_uri 落地点使用。
+
+    飞书官方网页应用入口推荐先走授权页，再回调到业务域名。这里先把回调
+    统一落到后端，再 302 到前端 /matrix 页面，避免工作台首页直接填写业务
+    域名时被飞书客户端按“外部链接”处理。
+
+    当前前端仍沿用 H5 JS SDK 静默登录，因此这里不消费 code，只负责把用户
+    稳定带进飞书内嵌页面。后续如需收敛登录链路，可在此直接消费 code。
+    """
+    settings = get_settings()
+    base_url = settings.frontend_url.rstrip("/")
+    target = f"{base_url}/matrix"
+
+    # 先透传回调参数，便于后续前端或后端切换为直接消费 OAuth code。
+    if code:
+        separator = "&" if "?" in target else "?"
+        target = f"{target}{separator}code={code}"
+        if state:
+            target = f"{target}&state={state}"
+
+    return RedirectResponse(url=target, status_code=302)
 
 
 @router.get("/me", summary="获取当前登录用户信息")
