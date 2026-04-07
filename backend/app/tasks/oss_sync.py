@@ -77,31 +77,43 @@ def _download_from_oss(tmp_dir: Path) -> dict[str, str]:
     return md5_map
 
 
-def _archive_and_replace_parquet(tmp_dir: Path, target_dir: Path, version: str) -> Path:
+def _archive_and_replace_parquet(
+    tmp_dir: Path, target_dir: Path, version: str
+) -> Optional[Path]:
     """
     将临时目录中的文件：
-    1. 复制到 target_dir/YYYYMMDD/ 归档目录（历史快照）
+    1. 若当天归档目录不存在，复制到 target_dir/YYYYMMDD/（历史快照）
+       若已存在（同天重复同步），跳过归档步骤
     2. 原子替换到 target_dir/ 根目录（DuckDB 实际读取路径）
 
     Returns:
-        archive_dir: 归档目录的绝对路径
+        archive_dir: 归档目录绝对路径；同天跳过归档时返回 None
     """
     archive_dir = target_dir / version
-    archive_dir.mkdir(parents=True, exist_ok=True)
+    already_archived = archive_dir.exists()
+    if already_archived:
+        logger.info(
+            f"归档目录 {archive_dir.name}/ 已存在，跳过归档步骤（同天重复同步）"
+        )
+    else:
+        archive_dir.mkdir(parents=True, exist_ok=True)
+
     target_dir.mkdir(parents=True, exist_ok=True)
 
     for tmp_file in tmp_dir.iterdir():
-        # 1. 写入归档目录
-        shutil.copy2(str(tmp_file), str(archive_dir / tmp_file.name))
+        # 1. 写入归档目录（仅首次）
+        if not already_archived:
+            shutil.copy2(str(tmp_file), str(archive_dir / tmp_file.name))
 
         # 2. 原子替换到根目录（先写 .tmp 再 os.replace，单文件级别原子）
         tmp_dst = target_dir / (tmp_file.name + ".tmp")
         shutil.copy2(str(tmp_file), str(tmp_dst))
         os.replace(str(tmp_dst), str(target_dir / tmp_file.name))
 
-        logger.info(f"  写入 {tmp_file.name}（已归档至 {archive_dir.name}/）")
+        suffix = f"（已归档至 {archive_dir.name}/）" if not already_archived else ""
+        logger.info(f"  写入 {tmp_file.name}{suffix}")
 
-    return archive_dir
+    return None if already_archived else archive_dir
 
 
 async def _create_sync_record(
@@ -186,6 +198,34 @@ async def _finish_sync_record(
         logger.warning(f"更新同步记录失败（不影响主流程）: {e}")
 
 
+def _cleanup_old_archives(parquet_dir: Path, keep_days: int) -> None:
+    """
+    删除 parquet_dir 下超过 keep_days 天的归档子目录（名称格式 YYYYMMDD）。
+    只处理纯数字8位目录名，避免误删其他目录。
+    失败仅记录日志，不抛出异常。
+    """
+    try:
+        cutoff = datetime.now(_SHANGHAI_TZ).strftime("%Y%m%d")
+        # 收集所有合法归档目录并按版本号排序
+        archives = sorted(
+            [
+                d
+                for d in parquet_dir.iterdir()
+                if d.is_dir() and d.name.isdigit() and len(d.name) == 8
+            ],
+            key=lambda d: d.name,
+        )
+        # 保留最新 keep_days 个，删除更早的
+        to_delete = archives[: max(0, len(archives) - keep_days)]
+        for old_dir in to_delete:
+            shutil.rmtree(str(old_dir), ignore_errors=True)
+            logger.info(f"已删除过期归档目录: {old_dir.name}/")
+        if not to_delete:
+            logger.info(f"归档目录数 {len(archives)} ≤ {keep_days}，无需清理")
+    except Exception as e:
+        logger.warning(f"清理旧归档失败（不影响主流程）: {e}")
+
+
 async def _write_data_version(
     version: str,
     parquet_dir: Path,
@@ -193,7 +233,8 @@ async def _write_data_version(
 ) -> None:
     """
     写入或更新 data_versions 表中的版本记录。
-    同一 version 已存在时跳过（IGNORE），保证幂等。
+    - 新 version：INSERT
+    - 同天重复同步（version 已存在）：UPDATE md5_map（归档目录不变）
     失败仅记录日志，不抛出异常。
     """
     try:
@@ -205,24 +246,27 @@ async def _write_data_version(
         settings = get_settings()
         engine = create_async_engine(settings.mysql_dsn, pool_pre_ping=True)
         now_utc = datetime.now(timezone.utc)
+        md5_json = json.dumps(md5_map or {}, ensure_ascii=False)
 
         async with engine.begin() as conn:
             await conn.execute(
                 sa.text("""
-                    INSERT IGNORE INTO data_versions
+                    INSERT INTO data_versions
                         (version, parquet_dir, md5_map, created_at)
                     VALUES
                         (:version, :parquet_dir, :md5_map, :created_at)
+                    ON DUPLICATE KEY UPDATE
+                        md5_map = VALUES(md5_map)
                 """),
                 {
                     "version": version,
                     "parquet_dir": str(parquet_dir.resolve()),
-                    "md5_map": json.dumps(md5_map or {}, ensure_ascii=False),
+                    "md5_map": md5_json,
                     "created_at": now_utc,
                 },
             )
         await engine.dispose()
-        logger.info(f"data_versions 已写入 version={version} dir={parquet_dir}")
+        logger.info(f"data_versions 已写入/更新 version={version}")
     except Exception as e:
         logger.warning(f"写入 data_versions 失败（不影响主流程）: {e}")
 
@@ -274,7 +318,17 @@ async def run_sync(force: bool = False) -> dict:
             logger.warning(f"Redis 缓存清理失败: {e}")
 
         await _finish_sync_record(record_id, "success", md5_map)
-        await _write_data_version(version, archive_dir, md5_map)
+
+        # 写入/更新 data_versions 记录
+        # archive_dir 为 None 表示同天重复同步跳过了归档，此时用已有归档目录路径
+        effective_archive_dir = (
+            archive_dir if archive_dir is not None else settings.parquet_path / version
+        )
+        await _write_data_version(version, effective_archive_dir, md5_map)
+
+        # 清理超过 keep_days 天的旧归档目录
+        _cleanup_old_archives(settings.parquet_path, settings.parquet_archive_keep_days)
+
         logger.info("OSS 数据同步完成")
         return {"status": "success", "msg": "同步完成"}
 

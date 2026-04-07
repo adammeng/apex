@@ -105,6 +105,8 @@ class Settings(BaseSettings):
     # 定时同步
     sync_hour: int = 5
     sync_minute: int = 10
+    # parquet 历史归档最多保留天数（超出的旧目录在下次同步成功后自动删除）
+    parquet_archive_keep_days: int = 5
 
     # 阿里云 OSS
     oss_endpoint: str = "https://oss-cn-hangzhou.aliyuncs.com"
