@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import AppLayout from './components/AppLayout'
+import FeishuGuard from './components/FeishuGuard'
 import RequireAuth from './components/RequireAuth'
 import MatrixPage from './pages/matrix'
 import PipelinePage from './pages/pipeline'
@@ -74,16 +75,18 @@ export default function App() {
             v7_relativeSplatPath: true
           }}
         >
-          <RequireAuth>
-            <AppLayout>
-              <Routes>
-                <Route path="/" element={<Navigate to="/matrix" replace />} />
-                <Route path="/matrix" element={<MatrixPage />} />
-                <Route path="/pipeline" element={<PipelinePage />} />
-                <Route path="*" element={<Navigate to="/matrix" replace />} />
-              </Routes>
-            </AppLayout>
-          </RequireAuth>
+          <FeishuGuard>
+            <RequireAuth>
+              <AppLayout>
+                <Routes>
+                  <Route path="/" element={<Navigate to="/matrix" replace />} />
+                  <Route path="/matrix" element={<MatrixPage />} />
+                  <Route path="/pipeline" element={<PipelinePage />} />
+                  <Route path="*" element={<Navigate to="/matrix" replace />} />
+                </Routes>
+              </AppLayout>
+            </RequireAuth>
+          </FeishuGuard>
         </BrowserRouter>
       </ConfigProvider>
     </QueryClientProvider>

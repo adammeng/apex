@@ -1,4 +1,21 @@
 services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: apex_caddy
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Shanghai
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      nginx:
+        condition: service_started
+
   backend:
     build:
       context: ../backend
@@ -62,8 +79,8 @@ services:
     restart: unless-stopped
     environment:
       - TZ=Asia/Shanghai
-    ports:
-      - "127.0.0.1:8080:80"
+    expose:
+      - "80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - frontend_dist:/usr/share/nginx/html:ro
@@ -85,6 +102,8 @@ services:
       sh -c "rm -rf /output/* && cp -r /usr/share/nginx/html/. /output/"
 
 volumes:
+  caddy_data:
+  caddy_config:
   mysql_data:
   redis_data:
   frontend_dist:

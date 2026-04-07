@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:docker": "vite build",
+    "build:docker": "node --max-old-space-size=512 node_modules/.bin/vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx"
   },
@@ -19,6 +19,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.2",
+    "vconsole": "^3.15.1",
     "zustand": "^5.0.2"
   },
   "devDependencies": {

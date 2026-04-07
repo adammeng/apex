@@ -1,7 +1,14 @@
 import { Spin } from 'antd'
 import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '../stores/auth'
-import { silentLogin, mockSilentLogin, fetchMe, isFeishuContainer } from '../services/auth'
+import {
+  silentLogin,
+  mockSilentLogin,
+  fetchMe,
+  isFeishuContainer,
+  getAuthDebugSummary,
+  getAuthRuntimeSnapshot,
+} from '../services/auth'
 import type { ReactNode } from 'react'
 
 interface RequireAuthProps {
@@ -29,6 +36,7 @@ export default function RequireAuth({ children }: RequireAuthProps) {
   const { token, user, setToken, setUser, logout } = useAuthStore()
   const [ready, setReady] = useState(!!token)
   const [error, setError] = useState<string | null>(null)
+  const [diagnostics, setDiagnostics] = useState('')
   const initialized = useRef(false)
 
   useEffect(() => {
@@ -72,7 +80,12 @@ export default function RequireAuth({ children }: RequireAuthProps) {
         setReady(true)
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
+        const snapshot = JSON.stringify(getAuthRuntimeSnapshot(), null, 2)
+        const debug = getAuthDebugSummary()
+        const detail = [snapshot, debug].filter(Boolean).join('\n\n')
+        console.error('[apex-auth] login failed', { msg, detail })
         setError(msg)
+        setDiagnostics(detail)
       }
     }
 
@@ -117,6 +130,27 @@ export default function RequireAuth({ children }: RequireAuthProps) {
         >
           {error}
         </div>
+        {diagnostics ? (
+          <pre
+            style={{
+              maxWidth: 960,
+              width: '100%',
+              overflowX: 'auto',
+              margin: 0,
+              padding: 16,
+              borderRadius: 12,
+              border: '1px solid #f0f0f0',
+              background: '#fafafa',
+              color: '#595959',
+              fontSize: 12,
+              lineHeight: 1.6,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+            }}
+          >
+            {diagnostics}
+          </pre>
+        ) : null}
       </div>
     )
   }
