@@ -569,6 +569,11 @@
   border-color: #d7e3f7;
 }
 
+.matrix-tooltip-card__item--opportunity {
+  background: linear-gradient(180deg, #fffdf7 0%, #fff7df 100%);
+  border-color: #f4df9b;
+}
+
 .matrix-tooltip-card__item-top {
   display: flex;
   align-items: center;
@@ -883,6 +888,10 @@
   z-index: 2;
 }
 
+.vm-col-header__cell--opportunity {
+  background: linear-gradient(180deg, #fff8e8 0%, #fff2cc 100%) !important;
+}
+
 /* ── 左侧行头（随数据区垂直滚动同步，不显示 scrollbar） ── */
 .vm-row-header-col {
   grid-column: 1;
@@ -909,6 +918,11 @@
   text-overflow: ellipsis;
   box-sizing: border-box;
   text-align: center;
+}
+
+.vm-row-header--opportunity {
+  background: linear-gradient(90deg, #fffef6 0%, #fff6da 100%);
+  color: #8a5a00;
 }
 
 .vm-row-phase {
@@ -945,6 +959,10 @@
   background: #f8fbff;
   box-shadow: inset 0 0 0 1px rgba(26, 115, 232, 0.22);
   z-index: 2;
+}
+
+.vm-row-phase--opportunity {
+  background: linear-gradient(180deg, #fff9eb 0%, #fff2cc 100%);
 }
 
 /* ── 数据区（主滚动区） ── */

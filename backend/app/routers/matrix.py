@@ -15,6 +15,9 @@ from ..services.analysis import (
     fetch_filtered_records,
 )
 from ..services.excel_export import (
+    MATRIX_EXPORT_COLUMN_WIDTHS,
+    MATRIX_EXPORT_HEADERS,
+    MATRIX_EXPORT_SHEET_NAME,
     build_excel_bytes,
     build_export_filename,
     build_matrix_export_rows,
@@ -124,7 +127,12 @@ async def matrix_export(
         top_n=top_n,
         hide_no_combo=hide_no_combo,
     )
-    content = build_excel_bytes(rows)
+    content = build_excel_bytes(
+        rows,
+        headers=MATRIX_EXPORT_HEADERS,
+        sheet_name=MATRIX_EXPORT_SHEET_NAME,
+        column_widths=MATRIX_EXPORT_COLUMN_WIDTHS,
+    )
     filename = build_export_filename("matrix")
     headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
     return Response(

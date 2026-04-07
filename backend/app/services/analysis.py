@@ -23,6 +23,8 @@ MATRIX_STAGE_MAP = {item["value"]: item["matrix"] for item in STAGE_ITEMS}
 PIPELINE_STAGE_MAP = {item["value"]: item["pipeline"] for item in STAGE_ITEMS}
 PIPELINE_LANES = ["PreC", "IND", "Phase 1", "Phase 2", "Phase 3", "BLA", "Market"]
 INVALID_TARGETS = {"", "NOT AVAILABLE", "N/A", "NA", "UNKNOWN"}
+DEFAULT_MATRIX_TOP_N = 50
+OPPORTUNITY_MIN_SCORE = 2.0
 
 
 def get_stage_items() -> List[dict]:
@@ -239,17 +241,30 @@ def sort_drugs(records: Sequence[dict]) -> List[dict]:
     )
 
 
+def _resolve_matrix_top_n(
+    selected_targets: Optional[Sequence[str]],
+    top_n: Optional[int],
+) -> Optional[int]:
+    if selected_targets:
+        return None
+    if top_n is not None:
+        return top_n
+    return DEFAULT_MATRIX_TOP_N
+
+
 def compute_matrix(
     records: Sequence[dict],
     selected_targets: Optional[Sequence[str]] = None,
     top_n: Optional[int] = None,
     hide_no_combo: bool = False,
 ) -> dict:
+    resolved_top_n = _resolve_matrix_top_n(selected_targets, top_n)
     target_max: Dict[str, float] = defaultdict(float)
     target_stage: Dict[str, str] = {}
     pair_scores: Dict[Tuple[str, str], float] = defaultdict(float)
     pair_stage: Dict[Tuple[str, str], str] = {}
     pair_drugs: Dict[Tuple[str, str], set] = defaultdict(set)
+    target_has_combo: Dict[str, bool] = defaultdict(bool)
 
     for record in records:
         targets = record["target_list"]
@@ -271,22 +286,20 @@ def compute_matrix(
                 pair_scores[pair_key] = score
                 pair_stage[pair_key] = record["stage_value"]
             pair_drugs[pair_key].add(record["drug_id"] or f"{record['drug_name_en']}|{record['nct_id']}")
+            target_has_combo[left] = True
+            target_has_combo[right] = True
 
     sorted_targets = sorted(target_max.keys(), key=lambda item: (-target_max[item], item.upper()))
     if selected_targets:
         target_set = set(selected_targets)
         display_targets = [target for target in sorted_targets if target in target_set]
     else:
-        display_targets = sorted_targets[:top_n] if top_n else sorted_targets
+        display_targets = sorted_targets[:resolved_top_n] if resolved_top_n else sorted_targets
 
     if hide_no_combo:
         filtered_targets = []
         for target in display_targets:
-            has_combo = any(
-                pair_scores.get(tuple(sorted((target, other))), 0) > 0
-                for other in display_targets
-                if other != target
-            )
+            has_combo = target_has_combo.get(target, False)
             if has_combo:
                 filtered_targets.append(target)
         display_targets = filtered_targets
@@ -311,6 +324,11 @@ def compute_matrix(
         target: {"score": target_max[target], "stage_value": target_stage.get(target)}
         for target in display_targets
     }
+    opportunity_targets = [
+        target
+        for target in display_targets
+        if target_max[target] >= OPPORTUNITY_MIN_SCORE and not target_has_combo.get(target, False)
+    ]
 
     return {
         "targets": display_targets,
@@ -319,6 +337,9 @@ def compute_matrix(
         "legend": get_stage_items(),
         "data_version": extract_data_version(records),
         "available_target_total": len(sorted_targets),
+        "display_target_total": len(display_targets),
+        "opportunity_targets": opportunity_targets,
+        "default_top_n": DEFAULT_MATRIX_TOP_N,
     }
 
 
@@ -328,15 +349,23 @@ def compute_tooltip(
     col_target: str,
 ) -> dict:
     matched_records = []
+    single_max_score: Optional[float] = None
     for record in records:
         targets = set(record["target_list"])
         if row_target == col_target:
             if row_target in targets:
+                if single_max_score is None or record["score"] > single_max_score:
+                    single_max_score = record["score"]
                 matched_records.append(record)
             continue
 
         if row_target in targets and col_target in targets:
             matched_records.append(record)
+
+    if row_target == col_target and single_max_score is not None:
+        matched_records = [
+            record for record in matched_records if record["score"] == single_max_score
+        ]
 
     return {
         "row_target": row_target,

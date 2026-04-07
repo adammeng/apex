@@ -49,7 +49,6 @@ export default function MatrixPage() {
       matrixApi.query({
         diseases: matrix.selectedDiseases,
         stages: matrix.selectedStages,
-        top_n: 40,
         hide_no_combo: matrix.hideNoCombo,
       }),
     enabled: matrix.selectedDiseases.length > 0 && matrix.selectedStages.length > 0,
@@ -73,7 +72,6 @@ export default function MatrixPage() {
       await matrixApi.exportExcel({
         diseases: matrix.selectedDiseases,
         stages: matrix.selectedStages,
-        top_n: 40,
         hide_no_combo: matrix.hideNoCombo,
       })
     } catch (error) {
@@ -146,7 +144,6 @@ export default function MatrixPage() {
         isLoading={isLoading}
         diseases={matrix.selectedDiseases}
         stages={matrix.selectedStages}
-        total={data?.available_target_total}
       />
     </div>
   )

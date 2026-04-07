@@ -26,7 +26,6 @@ interface MatrixBoardProps {
   isLoading: boolean
   diseases?: string[]
   stages?: string[]
-  total?: number
 }
 
 interface TooltipState {
@@ -34,14 +33,14 @@ interface TooltipState {
   colTarget: string
   left: number
   top: number
+  isOpportunity: boolean
 }
 
 const MatrixBoard = forwardRef<MatrixBoardHandle, MatrixBoardProps>(function MatrixBoard({
   data,
   isLoading,
   diseases,
-  stages,
-  total,
+  stages
 }, ref) {
   const [tooltip, setTooltip] = useState<TooltipState | null>(null)
   const boardRef = useRef<HTMLDivElement | null>(null)
@@ -64,6 +63,10 @@ const MatrixBoard = forwardRef<MatrixBoardHandle, MatrixBoardProps>(function Mat
     })
     return map
   }, [data])
+  const opportunityTargets = useMemo(
+    () => new Set(data?.opportunity_targets ?? []),
+    [data]
+  )
 
   const targets = data?.targets ?? []
   const rowCount = targets.length
@@ -150,7 +153,7 @@ const MatrixBoard = forwardRef<MatrixBoardHandle, MatrixBoardProps>(function Mat
   }
 
   const openTooltip = useCallback(
-    (el: HTMLElement, rowTarget: string, colTarget: string) => {
+    (el: HTMLElement, rowTarget: string, colTarget: string, isOpportunity = false) => {
       clearCloseTimer()
       const rect = el.getBoundingClientRect()
       setTooltip({
@@ -158,6 +161,7 @@ const MatrixBoard = forwardRef<MatrixBoardHandle, MatrixBoardProps>(function Mat
         colTarget,
         left: Math.min(rect.right + 12, window.innerWidth - 420),
         top: Math.min(rect.top, window.innerHeight - 460),
+        isOpportunity,
       })
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -262,10 +266,11 @@ const MatrixBoard = forwardRef<MatrixBoardHandle, MatrixBoardProps>(function Mat
               const target = targets[vc.index]
               const score = data.single_max[target]?.score
               const scoreStyle = getScoreStyle(score)
+              const isOpportunity = opportunityTargets.has(target)
               return (
                 <div
                   key={`ch2-${vc.index}`}
-                  className="vm-col-header__cell vm-col-header__cell--score"
+                  className={`vm-col-header__cell vm-col-header__cell--score${isOpportunity ? ' vm-col-header__cell--opportunity' : ''}`}
                   style={{
                     position: 'absolute',
                     left: vc.start,
@@ -275,7 +280,7 @@ const MatrixBoard = forwardRef<MatrixBoardHandle, MatrixBoardProps>(function Mat
                     background: '#f8fafc',
                     padding: '4px 6px',
                   }}
-                  onMouseEnter={(e) => openTooltip(e.currentTarget, target, target)}
+                  onMouseEnter={(e) => openTooltip(e.currentTarget, target, target, isOpportunity)}
                   onMouseLeave={scheduleCloseTooltip}
                 >
                   <span className="vm-cell__pill" style={scoreStyle}>
@@ -298,6 +303,7 @@ const MatrixBoard = forwardRef<MatrixBoardHandle, MatrixBoardProps>(function Mat
             {virtualRows.map((vr) => {
               const rowTarget = targets[vr.index]
               const singleScore = data.single_max[rowTarget]?.score
+              const isOpportunity = opportunityTargets.has(rowTarget)
               return (
                 <div
                   key={`rh-${vr.index}`}
@@ -311,19 +317,19 @@ const MatrixBoard = forwardRef<MatrixBoardHandle, MatrixBoardProps>(function Mat
                   }}
                 >
                   <div
-                    className="vm-row-header"
+                    className={`vm-row-header${isOpportunity ? ' vm-row-header--opportunity' : ''}`}
                     style={{ width: COL_TARGET_W, height: ROW_H }}
                     title={rowTarget}
                   >
                     {rowTarget}
                   </div>
                   <div
-                    className="vm-row-phase"
+                    className={`vm-row-phase${isOpportunity ? ' vm-row-phase--opportunity' : ''}`}
                     style={{
                       width: COL_PHASE_W,
                       height: ROW_H,
                     }}
-                    onMouseEnter={(e) => openTooltip(e.currentTarget, rowTarget, rowTarget)}
+                    onMouseEnter={(e) => openTooltip(e.currentTarget, rowTarget, rowTarget, isOpportunity)}
                     onMouseLeave={scheduleCloseTooltip}
                   >
                     <span className="vm-row-phase__pill" style={getScoreStyle(singleScore)}>
@@ -391,9 +397,9 @@ const MatrixBoard = forwardRef<MatrixBoardHandle, MatrixBoardProps>(function Mat
             </div>
           ))}
         </div>
-        {total != null && (
-          <span className="analysis-legend__total">靶点数 {total}</span>
-        )}
+        <span className="analysis-legend__total">
+          当前展示 {data.display_target_total} / 可用靶点 {data.available_target_total}
+        </span>
       </div>
 
       {/* Tooltip */}
@@ -409,6 +415,7 @@ const MatrixBoard = forwardRef<MatrixBoardHandle, MatrixBoardProps>(function Mat
             colTarget={tooltip.colTarget}
             diseases={diseases}
             stages={stages}
+            isOpportunity={tooltip.isOpportunity}
           />
         </div>
       ) : null}

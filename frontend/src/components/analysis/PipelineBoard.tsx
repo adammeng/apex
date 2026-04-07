@@ -47,26 +47,25 @@ const PipelineBoard = forwardRef<PipelineBoardHandle, PipelineBoardProps>(functi
   const handleExport = useCallback(() => {
     if (!data) return
     const header = [
-      '疾病', '靶点', '泳道（阶段）', '药物名（英）', '药物名（中）',
-      '研发阶段', '阶段分值', '原研机构', '研究机构', 'NCT ID', '试验日期', '是否组合靶点',
+      '治疗领域', '疾病种类', '靶点', '药品中文名', '药品英文名',
+      'nctId', '原研机构', '所有研究机构', '研发阶段', '阶段分值', '最高阶段日期',
     ]
     const rows: string[][] = [header]
     for (const row of data.rows) {
       for (const lane of data.lanes) {
         for (const drug of row.cells[lane] ?? []) {
           rows.push([
+            drug.ta ?? '',
             data.disease,
             row.target,
-            lane,
-            drug.drug_name_en ?? '',
             drug.drug_name_cn ?? '',
-            drug.stage_value ?? '',
-            drug.score != null ? drug.score.toFixed(1) : '',
+            drug.drug_name_en ?? '',
+            drug.nct_id ?? '',
             drug.originator ?? '',
             drug.research_institute ?? '',
-            drug.nct_id ?? '',
+            drug.stage_value ?? '',
+            drug.score != null ? drug.score.toFixed(1) : '',
             drug.highest_trial_date ?? '',
-            drug.is_combo ? '是' : '否',
           ])
         }
       }
@@ -91,7 +90,7 @@ const PipelineBoard = forwardRef<PipelineBoardHandle, PipelineBoardProps>(functi
   if (!data || data.rows.length === 0) {
     return (
       <div className="analysis-empty">
-        <Empty description="当前筛选条件下暂无研发进展数据" />
+        <Empty description="暂无相关研发药品" />
       </div>
     )
   }

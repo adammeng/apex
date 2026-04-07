@@ -34,6 +34,7 @@ export interface MatrixQueryResult {
   targets: string[]
   single_max: Record<string, MatrixSingleMax>
   cells: MatrixCell[]
+  opportunity_targets: string[]
   legend: Array<{
     value: string
     score: number
@@ -42,6 +43,8 @@ export interface MatrixQueryResult {
   }>
   data_version: string | null
   available_target_total: number
+  display_target_total: number
+  default_top_n: number
 }
 
 export interface TooltipDrug {

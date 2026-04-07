@@ -10,6 +10,9 @@ from ..core.redis_client import cache_get, cache_set, make_cache_key
 from ..schemas.response import ApiResponse
 from ..services.analysis import compute_pipeline, fetch_filtered_records
 from ..services.excel_export import (
+    PIPELINE_EXPORT_COLUMN_WIDTHS,
+    PIPELINE_EXPORT_HEADERS,
+    PIPELINE_EXPORT_SHEET_NAME,
     build_excel_bytes,
     build_export_filename,
     build_pipeline_export_rows,
@@ -55,7 +58,12 @@ async def pipeline_export(
         selected_targets=targets,
         include_combo=include_combo,
     )
-    content = build_excel_bytes(rows)
+    content = build_excel_bytes(
+        rows,
+        headers=PIPELINE_EXPORT_HEADERS,
+        sheet_name=PIPELINE_EXPORT_SHEET_NAME,
+        column_widths=PIPELINE_EXPORT_COLUMN_WIDTHS,
+    )
     filename = build_export_filename("swimlane")
     headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
     return Response(

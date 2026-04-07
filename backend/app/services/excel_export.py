@@ -8,53 +8,80 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-from .analysis import MATRIX_STAGE_MAP, compute_matrix
+from .analysis import compute_matrix
 
-EXPORT_HEADERS = [
-    "药品英文名",
+MATRIX_EXPORT_HEADERS = [
+    "治疗领域",
+    "疾病种类",
     "药品中文名",
-    "靶点组合",
-    "研发阶段",
-    "阶段分值",
+    "药品英文名",
+    "nctId",
     "原研机构",
     "所有研究机构",
+    "靶点组合",
+    "最高阶段",
     "最高阶段日期",
-    "nctId",
-    "疾病",
-    "疾病领域",
+    "最高阶段分值",
     "是否联用",
 ]
+PIPELINE_EXPORT_HEADERS = [
+    "治疗领域",
+    "疾病种类",
+    "靶点",
+    "药品中文名",
+    "药品英文名",
+    "nctId",
+    "原研机构",
+    "所有研究机构",
+    "研发阶段",
+    "阶段分值",
+    "最高阶段日期",
+]
 
-EXPORT_SHEET_NAME = "研发管线数据"
+MATRIX_EXPORT_SHEET_NAME = "靶点组合竞争矩阵"
+PIPELINE_EXPORT_SHEET_NAME = "靶点研发进展格局"
 EXPORT_HEADER_FILL = PatternFill("solid", fgColor="DCE7FF")
 EXPORT_HEADER_FONT = Font(bold=True, color="1F3763")
 EXPORT_HEADER_ALIGNMENT = Alignment(horizontal="center", vertical="center")
 EXPORT_BODY_ALIGNMENT = Alignment(vertical="center")
-EXPORT_COLUMN_WIDTHS = [20, 18, 22, 14, 10, 18, 26, 14, 18, 28, 16, 10]
+MATRIX_EXPORT_COLUMN_WIDTHS = [16, 24, 18, 20, 18, 18, 26, 22, 14, 14, 12, 10]
+PIPELINE_EXPORT_COLUMN_WIDTHS = [16, 24, 18, 18, 20, 18, 18, 26, 14, 12, 14]
 
 
 def _format_targets(targets: Sequence[str]) -> str:
     return " + ".join(targets)
 
 
-def _format_stage(stage_value: str) -> str:
-    return MATRIX_STAGE_MAP.get(stage_value, stage_value)
-
-
-def _build_export_row(record: dict, targets: Sequence[str]) -> List[object]:
+def _build_matrix_export_row(record: dict, targets: Sequence[str]) -> List[object]:
     return [
-        record["drug_name_en"],
+        record["ta"],
+        record["disease"],
         record["drug_name_cn"],
-        _format_targets(targets),
-        _format_stage(record["stage_value"]),
-        record["score"],
+        record["drug_name_en"],
+        record["nct_id"],
         record["originator"],
         record["research_institute"],
+        _format_targets(targets),
+        record["stage_value"],
         record["highest_trial_date"],
-        record["nct_id"],
-        record["disease"],
-        record["ta"],
+        record["score"],
         "是" if record["is_combo"] else "否",
+    ]
+
+
+def _build_pipeline_export_row(record: dict, target: str) -> List[object]:
+    return [
+        record["ta"],
+        record["disease"],
+        target,
+        record["drug_name_cn"],
+        record["drug_name_en"],
+        record["nct_id"],
+        record["originator"],
+        record["research_institute"],
+        record["stage_value"],
+        record["score"],
+        record["highest_trial_date"],
     ]
 
 
@@ -92,7 +119,7 @@ def build_matrix_export_rows(
         matched_targets = [target for target in record["target_list"] if target in display_targets]
         if not matched_targets:
             continue
-        rows.append(_build_export_row(record, matched_targets))
+        rows.append(_build_matrix_export_row(record, matched_targets))
     return rows
 
 
@@ -114,17 +141,23 @@ def build_pipeline_export_rows(
             if not matched_targets:
                 continue
 
-        rows.append(_build_export_row(record, matched_targets))
+        for target in matched_targets:
+            rows.append(_build_pipeline_export_row(record, target))
 
     return rows
 
 
-def build_excel_bytes(rows: Sequence[Sequence[object]]) -> bytes:
+def build_excel_bytes(
+    rows: Sequence[Sequence[object]],
+    headers: Sequence[object],
+    sheet_name: str,
+    column_widths: Sequence[int],
+) -> bytes:
     workbook = Workbook()
     worksheet = workbook.active
-    worksheet.title = EXPORT_SHEET_NAME
+    worksheet.title = sheet_name
     worksheet.freeze_panes = "A2"
-    worksheet.append(EXPORT_HEADERS)
+    worksheet.append(list(headers))
 
     for row in rows:
         worksheet.append(list(row))
@@ -138,7 +171,7 @@ def build_excel_bytes(rows: Sequence[Sequence[object]]) -> bytes:
         for cell in row:
             cell.alignment = EXPORT_BODY_ALIGNMENT
 
-    for index, width in enumerate(EXPORT_COLUMN_WIDTHS, start=1):
+    for index, width in enumerate(column_widths, start=1):
         worksheet.column_dimensions[get_column_letter(index)].width = width
 
     worksheet.auto_filter.ref = worksheet.dimensions
