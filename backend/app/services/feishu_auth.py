@@ -73,7 +73,7 @@ async def exchange_code_for_user(code: str) -> dict:
     app_token = await get_app_access_token()
 
     async with httpx.AsyncClient(timeout=10) as client:
-        # 换取用户 access_token
+        # 用 code 换取用户 access_token
         resp = await client.post(
             FEISHU_TOKEN_URL,
             headers={"Authorization": f"Bearer {app_token}"},
@@ -85,7 +85,28 @@ async def exchange_code_for_user(code: str) -> dict:
         if body.get("code") != 0:
             raise RuntimeError(_format_feishu_error("飞书 code 换 token 失败", body, resp))
 
-        data = body["data"]
+        token_data = body.get("data") or {}
+        user_access_token = token_data.get("access_token")
+        if not user_access_token:
+            raise RuntimeError(
+                _format_feishu_error("飞书 code 换 token 失败", body, resp)
+            )
+
+        user_resp = await client.get(
+            FEISHU_USER_URL,
+            headers={"Authorization": f"Bearer {user_access_token}"},
+        )
+        user_body = _safe_json(user_resp)
+        if user_resp.status_code >= 400:
+            raise RuntimeError(
+                _format_feishu_error("获取飞书用户信息失败", user_body, user_resp)
+            )
+        if user_body.get("code") != 0:
+            raise RuntimeError(
+                _format_feishu_error("获取飞书用户信息失败", user_body, user_resp)
+            )
+
+        data = user_body.get("data") or {}
         return {
             "open_id": data["open_id"],
             "name": data.get("name") or data.get("display_name") or "未知用户",
