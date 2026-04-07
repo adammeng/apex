@@ -120,6 +120,72 @@ async def get_me(user: dict = Depends(get_current_user)):
     )
 
 
+@router.get("/feishu/web-login", summary="外部浏览器飞书网页 OAuth 跳转")
+async def feishu_web_login():
+    """
+    外部浏览器访问时，重定向到飞书网页扫码授权页。
+    授权成功后飞书回调 /api/auth/feishu/callback?code=xxx。
+    """
+    settings = get_settings()
+    from urllib.parse import urlencode
+
+    params = urlencode(
+        {
+            "app_id": settings.feishu_app_id,
+            "redirect_uri": settings.feishu_redirect_uri,
+            "response_type": "code",
+            "scope": "contact:user.base:readonly",
+            "state": "web_login",
+        }
+    )
+    feishu_oauth_url = f"https://open.feishu.cn/open-apis/authen/v1/authorize?{params}"
+    return RedirectResponse(url=feishu_oauth_url, status_code=302)
+
+
+@router.get("/feishu/callback", summary="飞书网页 OAuth 回调")
+async def feishu_web_callback(
+    code: Optional[str] = Query(default=None),
+    state: Optional[str] = Query(default=None),
+    error: Optional[str] = Query(default=None),
+):
+    """
+    飞书授权完成后的回调落地点（网页 OAuth 场景）。
+    换取用户信息，签发 JWT，重定向到前端并在 URL fragment 中携带 token。
+    """
+    settings = get_settings()
+    base_url = settings.frontend_url.rstrip("/")
+
+    if error or not code:
+        logger.warning(f"飞书网页 OAuth 回调失败: error={error}, code={code}")
+        return RedirectResponse(
+            url=f"{base_url}/login-error?reason={error or 'no_code'}",
+            status_code=302,
+        )
+
+    try:
+        user_info = await exchange_code_for_user(code)
+    except Exception as e:
+        logger.warning(f"飞书网页 OAuth code 换用户失败: {e}")
+        return RedirectResponse(
+            url=f"{base_url}/login-error?reason=exchange_failed",
+            status_code=302,
+        )
+
+    token = create_access_token(
+        {
+            "open_id": user_info["open_id"],
+            "name": user_info["name"],
+            "avatar_url": user_info.get("avatar_url", ""),
+            "email": user_info.get("email", ""),
+        }
+    )
+    # 用 URL fragment（#）传 token，不经过服务器日志
+    return RedirectResponse(
+        url=f"{base_url}/auth-callback#token={token}",
+        status_code=302,
+    )
+
+
 @router.post("/mock-login", summary="非飞书环境登录（PC 浏览器访问用）")
 async def mock_login():
     """
