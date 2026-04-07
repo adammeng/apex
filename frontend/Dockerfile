@@ -9,6 +9,8 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+# 限制 Node 堆内存，防止低配服务器构建时 OOM 假死
+ENV NODE_OPTIONS="--max-old-space-size=512"
 RUN npm run build:docker
 
 FROM nginx:alpine
