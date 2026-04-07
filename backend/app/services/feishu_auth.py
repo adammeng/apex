@@ -10,8 +10,8 @@ from ..core.config import get_settings
 
 FEISHU_TOKEN_URL = "https://open.feishu.cn/open-apis/authen/v1/oidc/access_token"
 FEISHU_USER_URL = "https://open.feishu.cn/open-apis/authen/v1/user_info"
-FEISHU_APP_TOKEN_URL = (
-    "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal"
+FEISHU_APP_ACCESS_TOKEN_URL = (
+    "https://open.feishu.cn/open-apis/auth/v3/app_access_token/internal"
 )
 
 
@@ -47,11 +47,11 @@ def _format_feishu_error(prefix: str, body: dict, resp: httpx.Response) -> str:
 
 
 async def get_app_access_token() -> str:
-    """获取飞书应用级 access token（tenant_access_token）。"""
+    """获取飞书应用级 access token（app_access_token）。"""
     settings = get_settings()
     async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.post(
-            FEISHU_APP_TOKEN_URL,
+            FEISHU_APP_ACCESS_TOKEN_URL,
             json={
                 "app_id": settings.feishu_app_id,
                 "app_secret": settings.feishu_app_secret,
@@ -62,7 +62,7 @@ async def get_app_access_token() -> str:
             raise RuntimeError(_format_feishu_error("获取飞书 app_access_token 失败", body, resp))
         if body.get("code") != 0:
             raise RuntimeError(_format_feishu_error("获取飞书 app_access_token 失败", body, resp))
-        return body["tenant_access_token"]
+        return body["app_access_token"]
 
 
 async def exchange_code_for_user(code: str) -> dict:
