@@ -243,6 +243,8 @@ except Exception as e:
 - parquet 文件存放在 `backend/parquet/`，由 OSS 同步覆盖
 - 同步后调用 `reload_conn()` 重建 DuckDB 连接，再调用 `cache_flush_pattern("apex:*")` 清缓存
 - 定时任务在 `tasks/scheduler.py`，时间由 `settings.sync_hour / sync_minute` 控制
+- 首次同步当天版本会归档到 `backend/parquet/YYYYMMDD/`；同天重复同步只更新根目录文件与 `data_versions.md5_map`，不重复创建归档目录
+- 旧归档目录按版本号排序清理，默认仅保留最近 `5` 天（`parquet_archive_keep_days`）
 
 ---
 

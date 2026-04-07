@@ -174,7 +174,7 @@ commit message 格式：`<type>: <描述>`，描述使用中文。type 取值如
    - [x] Redis 异步缓存工具
    - [x] MySQL 建库建表（Alembic 迁移 001_sync_tables）
    - [x] 健康检查、元数据接口（疾病树 / 靶点 / 阶段枚举）
-   - [x] APScheduler 定时同步骨架
+   - [x] APScheduler 定时同步与 parquet 归档清理（同天重复同步更新根目录，归档默认保留 5 天）
    - [x] 飞书 OAuth 完整登录流程（`/auth/feishu/code2token`、`/auth/me`）
    - [x] 竞争矩阵查询（`/matrix/query`、`/matrix/tooltip`、`/matrix/export`）
    - [x] 研发泳道查询（`/pipeline/query`、`/pipeline/export`）
@@ -203,3 +203,4 @@ commit message 格式：`<type>: <描述>`，描述使用中文。type 取值如
 
 - **DuckDB 查询**：业务路由中统一使用 `get_cursor()`（`core/duckdb_conn.py`），禁止直接调用 `get_conn()`。`get_cursor()` 每次返回独立 cursor，与全局连接共享内存数据库但执行上下文隔离，线程安全。`get_conn()` 仅供启动预热使用。
 - **Redis 缓存键**：所有通过 `make_cache_key()` 生成的 key 格式为 `apex:<prefix>:<md5>`，与 `cache_flush_pattern("apex:*")` 命名空间一致，数据同步后缓存可被正确清除。
+- **OSS 同步归档**：同步成功后 parquet 会先归档到 `backend/parquet/YYYYMMDD/`，同天重复同步不重复创建归档目录，只更新根目录文件和 `data_versions.md5_map`；旧归档默认仅保留最近 5 天。

@@ -260,23 +260,20 @@ V1 统一把 `ci_tracking_info` 视为主事实表，原因：
 #### `data_versions`
 
 - `id`
-- `source_name`
-- `file_name`
-- `file_etag`
-- `file_size`
-- `version_date`
-- `loaded_at`
-- `is_active`
+- `version`            # YYYYMMDD，唯一键
+- `parquet_dir`        # 对应归档目录，如 backend/parquet/20260407
+- `md5_map`            # 三个 parquet 文件的 MD5 摘要
+- `created_at`
 
 #### `sync_jobs`
 
 - `id`
-- `job_type`
+- `version`            # 触发当天（Asia/Shanghai）的 YYYYMMDD
 - `status`
-- `started_at`
-- `finished_at`
-- `message`
-- `version_id`
+- `md5_map`
+- `error_msg`
+- `created_at`
+- `updated_at`
 
 #### `query_logs`
 
@@ -441,18 +438,23 @@ V1 统一把 `ci_tracking_info` 视为主事实表，原因：
 flowchart LR
     A["APScheduler 05:10"] --> B["从 OSS 下载新 parquet"]
     B --> C["校验文件大小/etag/可读性"]
-    C --> D["落盘到新版本目录"]
-    D --> E["DuckDB 重建外部表与视图"]
-    E --> F["切换 active data_version"]
-    F --> G["清理 Redis 查询缓存"]
-    G --> H["写 sync_jobs 成功日志"]
+    C --> D["写入 .parquet_tmp 临时目录"]
+    D --> E["首次同步当天版本: 归档到 backend/parquet/YYYYMMDD"]
+    E --> F["同天重复同步: 若归档目录已存在则跳过归档"]
+    F --> G["原子覆盖 backend/parquet 根目录"]
+    G --> H["DuckDB reload_conn() 热更新"]
+    H --> I["清理 Redis 查询缓存"]
+    I --> J["写 sync_jobs 并 upsert data_versions"]
+    J --> K["清理旧归档目录（默认保留 5 天）"]
 ```
 
 关键实现细节：
 
-- 先下载到临时目录，校验通过后再 rename
+- 先下载到临时目录，校验通过后再落盘；根目录文件始终通过 `.tmp + os.replace()` 原子替换
+- 同一天重复同步时不再重复创建 `backend/parquet/YYYYMMDD/` 归档目录，只更新根目录文件与 `data_versions.md5_map`
 - DuckDB 采用"全局单例连接 + 每请求独立 cursor"模式：`get_cursor()` 返回 `_conn.cursor()`，执行上下文隔离，线程安全；`reload_conn()` 加锁重建连接后旧 cursor 自动失效
-- 每次同步必须记录版本号和异常日志
+- `sync_jobs` 记录每次执行结果；`data_versions` 只保留每天一个版本快照
+- 归档目录按版本号排序，默认仅保留最近 5 天
 - 失败时保留旧版本继续服务
 
 ## 11. AI 智能体扩展方案
