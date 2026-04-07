@@ -219,11 +219,10 @@ const MatrixBoard = forwardRef<MatrixBoardHandle, MatrixBoardProps>(function Mat
             <div className="vm-corner__cell" style={{ width: COL_TARGET_W }}>Target</div>
             <div className="vm-corner__cell" style={{ width: COL_PHASE_W }}>Highest Phase</div>
           </div>
-          {/* 下半行：Highest Phase / — */}
+          {/* 下半行：Highest Phase / 交叉空格（斜线） */}
           <div className="vm-corner__row" style={{ height: HEADER_H / 2 }}>
             <div className="vm-corner__cell" style={{ width: COL_TARGET_W }}>Highest Phase</div>
-            <div className="vm-corner__cell" style={{ width: COL_PHASE_W }}>—</div>
-          </div>
+            <div className="vm-corner__cell vm-corner__cell--diagonal" style={{ width: COL_PHASE_W }} /></div>
         </div>
 
         {/* ── 顶部列头（水平随 dataRef 同步，不显示 scrollbar） ── */}
@@ -275,9 +274,13 @@ const MatrixBoard = forwardRef<MatrixBoardHandle, MatrixBoardProps>(function Mat
                   onMouseEnter={(e) => openTooltip(e.currentTarget, target, target)}
                   onMouseLeave={scheduleCloseTooltip}
                 >
-                  <span className="vm-cell__pill" style={scoreStyle}>
-                    {score != null ? score.toFixed(1) : '—'}
-                  </span>
+                  {score != null ? (
+                    <span className="vm-cell__pill" style={scoreStyle}>
+                      {score.toFixed(1)}
+                    </span>
+                  ) : (
+                    <span className="vm-cell__empty">—</span>
+                  )}
                 </div>
               )
             })}
@@ -323,9 +326,13 @@ const MatrixBoard = forwardRef<MatrixBoardHandle, MatrixBoardProps>(function Mat
                     onMouseEnter={(e) => openTooltip(e.currentTarget, rowTarget, rowTarget)}
                     onMouseLeave={scheduleCloseTooltip}
                   >
-                    <span className="vm-row-phase__pill" style={getScoreStyle(singleScore)}>
-                      {singleScore != null ? singleScore.toFixed(1) : '—'}
-                    </span>
+                    {singleScore != null ? (
+                      <span className="vm-row-phase__pill" style={getScoreStyle(singleScore)}>
+                        {singleScore.toFixed(1)}
+                      </span>
+                    ) : (
+                      <span className="vm-cell__empty">—</span>
+                    )}
                   </div>
                 </div>
               )
@@ -367,6 +374,9 @@ const MatrixBoard = forwardRef<MatrixBoardHandle, MatrixBoardProps>(function Mat
                       <span className="vm-cell__pill" style={cellStyle}>
                         {score.toFixed(1)}
                       </span>
+                    )}
+                    {!isDiag && score == null && (
+                      <span className="vm-cell__empty">-</span>
                     )}
                   </div>
                 )

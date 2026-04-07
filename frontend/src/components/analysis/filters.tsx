@@ -145,13 +145,19 @@ export function DiseaseTreeFilter({ diseaseTree, value, onChange }: DiseaseTreeF
 // ── StageFilter ───────────────────────────────────────────────────────────────
 
 export function StageFilter({ stages, value, onChange }: StageFilterProps) {
+  // 按分值降序排列（4.0 → 0.1），选项同时显示阶段名称和分值
+  const sortedStages = useMemo(
+    () => [...stages].sort((a, b) => b.score - a.score),
+    [stages]
+  )
+
   const options = useMemo(
     () =>
-      stages.map((stage) => ({
-        label: stage.matrix,
+      sortedStages.map((stage) => ({
+        label: `${stage.matrix} (${stage.score.toFixed(1)})`,
         value: stage.value,
       })),
-    [stages]
+    [sortedStages]
   )
 
   const allValues = useMemo(() => stages.map((stage) => stage.value), [stages])

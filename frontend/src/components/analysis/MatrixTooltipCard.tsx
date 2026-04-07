@@ -73,6 +73,9 @@ export default function MatrixTooltipCard({
                   {drug.stage_value} / {drug.score.toFixed(1)}
                 </span>
               </div>
+              {drug.drug_name_cn && drug.drug_name_cn !== getDrugDisplayName(drug) ? (
+                <div className="matrix-tooltip-card__item-cn">{drug.drug_name_cn}</div>
+              ) : null}
               <div className="matrix-tooltip-card__item-meta">
                 <span className="matrix-tooltip-card__item-label">疾病</span>
                 <span className="matrix-tooltip-card__item-value">{drug.disease}</span>

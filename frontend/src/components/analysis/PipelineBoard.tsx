@@ -19,9 +19,13 @@ interface PipelineBoardProps {
 }
 
 function PipelineDrugCard({ drug }: { drug: TooltipDrug }) {
+  const displayName = getDrugDisplayName(drug)
   return (
     <div className="pipeline-card">
-      <div className="pipeline-card__title">{getDrugDisplayName(drug)}</div>
+      <div className="pipeline-card__title">{displayName}</div>
+      {drug.drug_name_cn && drug.drug_name_cn !== displayName ? (
+        <div className="pipeline-card__cn">{drug.drug_name_cn}</div>
+      ) : null}
       <div className="pipeline-card__meta">原研：{drug.originator || '-'}</div>
       <div className="pipeline-card__meta">机构：{drug.research_institute || '-'}</div>
       <div className="pipeline-card__meta">
