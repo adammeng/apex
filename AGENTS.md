@@ -175,15 +175,19 @@ commit message 格式：`<type>: <描述>`，描述使用中文。type 取值如
    - [x] MySQL 建库建表（Alembic 迁移 001_sync_tables）
    - [x] 健康检查、元数据接口（疾病树 / 靶点 / 阶段枚举）
    - [x] APScheduler 定时同步与 parquet 归档清理（同天重复同步更新根目录，归档默认保留 5 天）
-   - [x] 飞书 OAuth 完整登录流程（`/auth/feishu/code2token`、`/auth/me`）
+   - [x] 飞书登录流程
+     - H5 内嵌静默登录（`/auth/feishu/code2token`、`/auth/me`）
+     - 外部浏览器 OAuth 网页授权（`/auth/feishu/redirect`、`/auth/feishu/callback`）
    - [x] 竞争矩阵查询（`/matrix/query`、`/matrix/tooltip`、`/matrix/export`）
    - [x] 研发泳道查询（`/pipeline/query`、`/pipeline/export`）
    - [x] Excel 导出服务（`services/excel_export.py`）
    - [ ] 导出任务管理（`/export/jobs`、`/export/jobs/{id}/download`，仍为占位）
 3. [x] 前端搭建（React + 路由 + 基础布局）
    - [x] AppLayout（左侧导航 + 顶部栏）
-   - [x] 统一请求实例（Axios + JWT 注入 + 401 跳转）
+   - [x] 统一请求实例（Axios + JWT 注入 + 401 自动重授权）
    - [x] Zustand 鉴权 & 筛选状态
+   - [x] FeishuGuard（飞书容器检测 + 外部浏览器 OAuth 回调处理 + 引导页）
+   - [x] RequireAuth（JWT 有效性校验 + 飞书内静默刷新 + 浏览器内 reload 重授权）
    - [x] 竞争矩阵页面（真实数据渲染，含筛选、矩阵展示、tooltip、导出）
    - [x] 研发泳道页面（真实数据渲染，含筛选、泳道展示、导出）
    - [x] 分析组件库（MatrixBoard、PipelineBoard、filters、MatrixTooltipCard）

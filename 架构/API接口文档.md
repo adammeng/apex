@@ -61,25 +61,32 @@ Authorization: Bearer <access_token>
 
 ### 3.3 飞书登录链路
 
-当前飞书登录流程如下：
+**场景一：飞书客户端内（H5 静默登录）**
 
 1. 前端在飞书容器内调用 `window.tt.requestAccess`
 2. 获取临时 `code`
 3. 调用 `POST /api/auth/feishu/code2token`
-4. 后端完成：
-   - `app_access_token/internal`
-   - `authen/v1/oidc/access_token`
-   - `authen/v1/user_info`
+4. 后端完成：`app_access_token/internal` → `authen/v1/oidc/access_token` → `authen/v1/user_info`
 5. 后端签发 Apex JWT 返回给前端
 
-详细流程见：[飞书登录流程](/Users/adam/repo/Apex/架构/飞书登录流程.md)
+**场景二：外部浏览器 OAuth 网页授权**
+
+1. 用户点击引导页「在当前浏览器中授权」
+2. 跳转 `GET /api/auth/feishu/redirect`，后端组装飞书 OAuth URL 并 302 跳转
+3. 飞书完成授权后回调 `GET /api/auth/feishu/callback?code=xxx`
+4. 后端换取用户信息，签发 JWT，302 到前端 `/?access_token=<jwt>`
+5. 前端 `FeishuGuard` 消费 URL 中的 token，存入 localStorage，清理 URL
+
+详细流程见：[飞书登录流程](./飞书登录流程.md)
 
 ## 4. 接口总览
 
 | 模块 | 方法 | 路径 | 说明 |
 | --- | --- | --- | --- |
-| 鉴权 | POST | `/api/auth/feishu/code2token` | 飞书 code 换 JWT |
-| 鉴权 | GET | `/api/auth/feishu/launch` | 飞书网页应用入口跳转 |
+| 鉴权 | POST | `/api/auth/feishu/code2token` | 飞书 JSSDK code 换 JWT（H5 静默登录） |
+| 鉴权 | GET | `/api/auth/feishu/launch` | 飞书工作台入口跳转 |
+| 鉴权 | GET | `/api/auth/feishu/redirect` | 外部浏览器发起 OAuth，302 到飞书授权页 |
+| 鉴权 | GET | `/api/auth/feishu/callback` | 飞书 OAuth 回调，换 JWT 后 302 到前端 |
 | 鉴权 | GET | `/api/auth/me` | 获取当前登录用户 |
 | 鉴权 | POST | `/api/auth/mock-login` | 开发环境 mock 登录 |
 | 系统 | GET | `/api/system/health` | 健康检查 |
@@ -180,7 +187,37 @@ Authorization: Bearer <access_token>
 - HTTP 401
 - `detail=未提供认证 Token` 或 `detail=Token 无效或已过期`
 
-#### 5.1.4 开发环境 mock 登录
+#### 5.1.4 外部浏览器发起飞书 OAuth 授权
+
+- 方法：`GET`
+- 路径：`/api/auth/feishu/redirect`
+- 鉴权：否
+
+说明：
+
+- 组装飞书 OAuth 授权 URL（`authen/v1/authorize`），302 跳转到飞书授权页
+- 需在后端配置 `FEISHU_REDIRECT_URI=https://your-domain.com/api/auth/feishu/callback`
+- 用户在飞书完成授权（扫码或账密）后，飞书回调 `/api/auth/feishu/callback`
+
+#### 5.1.5 飞书 OAuth 回调
+
+- 方法：`GET`
+- 路径：`/api/auth/feishu/callback`
+- 鉴权：否
+
+查询参数（由飞书自动携带）：
+
+| 参数 | 类型 | 说明 |
+| --- | --- | --- |
+| `code` | string | 飞书授权码 |
+| `state` | string | 防 CSRF 随机串 |
+| `error` | string | 授权失败时携带错误原因 |
+
+授权成功：302 到 `FRONTEND_URL/?access_token=<jwt>`，前端 `FeishuGuard` 消费 token 后清理 URL。
+
+授权失败：302 到 `FRONTEND_URL/?auth_error=<reason>`，前端展示授权失败提示页。
+
+#### 5.1.6 开发环境 mock 登录
 
 - 方法：`POST`
 - 路径：`/api/auth/mock-login`
@@ -600,7 +637,10 @@ Authorization: Bearer <access_token>
 
 ### 6.2 普通浏览器访问
 
-普通浏览器访问业务页时，前端会显示“请在飞书中打开”的引导页，这是当前设计，不是异常。
+普通浏览器访问业务页时，前端展示「请在飞书中打开」引导页，提供两个入口：
+
+- **「在飞书客户端中打开」**：通过 applink 拉起飞书客户端
+- **「在当前浏览器中授权」**：跳转 `/api/auth/feishu/redirect` 走网页 OAuth，授权完成后自动回到业务页
 
 ### 6.3 本地开发
 
