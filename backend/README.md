@@ -167,6 +167,8 @@ brew services stop redis
 
 ## 接口概览
 
+完整接口说明见：`../架构/API接口文档.md`
+
 ### 鉴权 `/api/auth`
 
 | 方法 | 路径 | 说明 | 认证 |

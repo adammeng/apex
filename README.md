@@ -116,6 +116,7 @@ uvicorn app.main:app --reload
 - 根目录说明：`README.md`
 - 前端说明：`frontend/README.md`
 - 后端说明：`backend/README.md`
+- 接口文档：`架构/API接口文档.md`
 - 整体架构：`架构/Apex整体技术架构实现方案.md`
 - 飞书登录流程：`架构/飞书登录流程.md`
 - 前端 Table 性能优化：`frontend/docs/table-performance.md`
