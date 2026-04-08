@@ -22,7 +22,9 @@ services:
       dockerfile: Dockerfile
     container_name: apex_backend
     restart: unless-stopped
-    env_file: ../backend/.env.production
+    env_file:
+      - ../backend/.env.production
+      - ../backend/.env.production.local
     environment:
       - TZ=Asia/Shanghai
     volumes:
@@ -48,7 +50,9 @@ services:
     image: mysql:8.0
     container_name: apex_mysql
     restart: unless-stopped
-    env_file: ../backend/.env.production
+    env_file:
+      - ../backend/.env.production
+      - ../backend/.env.production.local
     environment:
       - TZ=Asia/Shanghai
     volumes:

@@ -125,15 +125,23 @@ async def trigger_sync(background_tasks: BackgroundTasks, force: bool = False):
 def _get_version_from_fs(settings) -> Optional[dict]:
     """从本地文件系统推断最新可用版本（数据库不可用时降级使用）。"""
     try:
-        raw_dir = settings.raw_data_dir
-        if not raw_dir.exists():
+        parquet_dir = settings.parquet_path
+        if not parquet_dir.exists():
             return None
         dirs = sorted(
-            [d.name for d in raw_dir.iterdir() if d.is_dir() and d.name.isdigit()],
+            [
+                d.name
+                for d in parquet_dir.iterdir()
+                if d.is_dir() and d.name.isdigit() and len(d.name) == 8
+            ],
             reverse=True,
         )
         if dirs:
-            return {"version": dirs[0], "source": "filesystem"}
+            return {
+                "version": dirs[0],
+                "parquet_dir": str(parquet_dir / dirs[0]),
+                "source": "filesystem",
+            }
         return None
     except Exception:
         return None
