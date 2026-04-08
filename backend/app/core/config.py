@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     # 飞书
     feishu_app_id: str = ""
     feishu_app_secret: str = ""
+    # 外部浏览器 OAuth 回调地址，对应路由 /api/auth/feishu/callback
+    # 需在飞书开放平台「安全设置 > 重定向 URL」中添加白名单
     feishu_redirect_uri: str = "http://localhost:8000/api/auth/feishu/callback"
 
     # 前端地址

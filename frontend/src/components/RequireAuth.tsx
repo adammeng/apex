@@ -24,13 +24,15 @@ function shouldUseMockLogin() {
  * 认证守卫 — 全程静默，无任何登录 UI。
  *
  * 飞书客户端内：
- *   1. 有 token → 直接渲染
- *   2. 无 token → 调飞书 JS SDK requestAuthCode → POST /auth/feishu/code2token → 存 JWT → 渲染
+ *   1. 有 token → fetchMe 校验有效性 → 有效则渲染
+ *   2. token 失效 → 清除 → 重走 silentLogin（JS SDK 重新获取 code → 换 JWT）
+ *   3. 无 token → 直接 silentLogin
  *
- * 非飞书环境（PC 浏览器、开发本地等）：
- *   1. 有 token → 直接渲染
- *   2. 无 token → POST /auth/mock-login → 存 JWT → 渲染
- *   （后端 DEBUG=true 时可用；生产如需限制，可在后端关闭 mock-login 接口）
+ * 非飞书环境（PC 浏览器）：
+ *   1. 有 token → fetchMe 校验有效性 → 有效则渲染
+ *   2. token 失效（fetchMe 抛 401）→ request.ts 的 401 拦截器清除 token 并 reload，
+ *      FeishuGuard 检测到无 token 展示引导页，用户重新网页授权
+ *   3. 无 token → mock-login（DEV）或 FeishuGuard 拦截展示引导页（生产）
  */
 export default function RequireAuth({ children }: RequireAuthProps) {
   const { token, user, setToken, setUser, logout } = useAuthStore()
@@ -42,32 +44,6 @@ export default function RequireAuth({ children }: RequireAuthProps) {
   useEffect(() => {
     if (initialized.current) return
     initialized.current = true
-
-    async function init() {
-      // 已有 token：补全 user 信息后直接进入
-      if (token) {
-        if (!user) {
-          try {
-            const me = await fetchMe()
-            // 如果当前已处于飞书环境，但本地还残留 mock token，强制重新走真实静默登录。
-            if (isFeishuContainer() && me.open_id === 'mock_open_id_dev') {
-              logout()
-              await doSilentLogin()
-              return
-            }
-            setUser(me)
-          } catch {
-            // token 过期或无效，重新走静默登录
-            logout()
-            await doSilentLogin()
-          }
-        }
-        setReady(true)
-        return
-      }
-
-      await doSilentLogin()
-    }
 
     async function doSilentLogin() {
       try {
@@ -87,6 +63,36 @@ export default function RequireAuth({ children }: RequireAuthProps) {
         setError(msg)
         setDiagnostics(detail)
       }
+    }
+
+    async function init() {
+      if (token) {
+        try {
+          const me = await fetchMe()
+          // 飞书客户端内检测到残留 mock token → 强制重走真实静默登录
+          if (isFeishuContainer() && me.open_id === 'mock_open_id_dev') {
+            logout()
+            await doSilentLogin()
+            return
+          }
+          setUser(me)
+          setReady(true)
+        } catch {
+          // token 过期或无效
+          logout()
+          if (isFeishuContainer()) {
+            // 飞书内：JS SDK 重新获取 code，静默换 JWT，用户无感知
+            await doSilentLogin()
+          } else {
+            // 外部浏览器：request.ts 的 401 拦截器已触发 reload
+            // 若是非 401 的网络错误，给一个友好提示
+            setError('登录已过期，请重新授权')
+          }
+        }
+        return
+      }
+
+      await doSilentLogin()
     }
 
     init()

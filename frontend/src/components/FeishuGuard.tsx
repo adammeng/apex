@@ -1,38 +1,143 @@
 /**
- * FeishuGuard — 外部浏览器访问时显示「请在飞书中打开」引导页
+ * FeishuGuard — 外部浏览器访问引导与 OAuth 回调处理
  *
- * 检测规则：
- * - UA 含 Lark / Feishu → 飞书客户端，直接透传
- * - window.h5sdk 存在 → 飞书客户端，直接透传
- * - 其余情况 → 外部浏览器，显示引导页
+ * 场景一：飞书客户端内
+ *   → 直接透传，由 RequireAuth 走 JS SDK 静默登录
  *
- * 仅处理桌面端场景（移动端行为与桌面一致，applink 同样有效）
+ * 场景二：外部浏览器，URL 中带 access_token（OAuth 回调落地）
+ *   → 存入 localStorage，清理 URL query，透传给子组件
+ *
+ * 场景三：外部浏览器，URL 中带 auth_error（OAuth 失败回调）
+ *   → 展示错误提示 + 重试按钮
+ *
+ * 场景四：外部浏览器，无 token 无 error
+ *   → 显示「请在飞书中打开」引导页，提供 applink 跳转 + 网页授权两种入口
+ *
+ * DEV 模式下跳过所有检测，直接透传。
  */
 
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { isFeishuContainer } from '../services/auth'
 
 const FEISHU_APP_ID = import.meta.env.VITE_FEISHU_APP_ID as string
+const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, '') || '/api'
 
-/** 拉起飞书客户端并打开指定网页应用的 applink */
+/** 飞书 applink：点击后在飞书客户端内打开网页应用 */
 function buildAppLink() {
   return `https://applink.feishu.cn/client/web_app/open?appId=${FEISHU_APP_ID}`
 }
+
+/** 后端发起飞书网页 OAuth 授权的入口 URL */
+function buildOAuthRedirectUrl() {
+  // 生产环境 API_BASE 可能是绝对路径（如 https://api.example.com/api）
+  // 开发环境是 /api，此时拼上 origin
+  const base = /^https?:\/\//.test(API_BASE)
+    ? API_BASE
+    : `${window.location.origin}${API_BASE}`
+  return `${base}/auth/feishu/redirect`
+}
+
+/** 从 URL query 里取出 token 并清理，返回 token 或 null */
+function consumeTokenFromUrl(): string | null {
+  const params = new URLSearchParams(window.location.search)
+  const token = params.get('access_token')
+  if (!token) return null
+  // 清理 URL，避免 token 暴露在浏览器历史记录
+  params.delete('access_token')
+  const newSearch = params.toString()
+  const newUrl = newSearch
+    ? `${window.location.pathname}?${newSearch}${window.location.hash}`
+    : `${window.location.pathname}${window.location.hash}`
+  window.history.replaceState(null, '', newUrl)
+  return token
+}
+
+/** 从 URL query 里取出 auth_error 并清理 */
+function consumeAuthErrorFromUrl(): string | null {
+  const params = new URLSearchParams(window.location.search)
+  const err = params.get('auth_error')
+  if (!err) return null
+  params.delete('auth_error')
+  const newSearch = params.toString()
+  const newUrl = newSearch
+    ? `${window.location.pathname}?${newSearch}${window.location.hash}`
+    : `${window.location.pathname}${window.location.hash}`
+  window.history.replaceState(null, '', newUrl)
+  return err
+}
+
+type GuardState =
+  | { type: 'loading' }
+  | { type: 'pass' }            // 直接透传给子组件
+  | { type: 'guide' }           // 显示引导页
+  | { type: 'error'; reason: string } // OAuth 失败
 
 interface FeishuGuardProps {
   children: ReactNode
 }
 
 export default function FeishuGuard({ children }: FeishuGuardProps) {
-  // 开发模式下跳过检测，继续走 mock 登录
-  if (import.meta.env.DEV) {
+  const [state, setState] = useState<GuardState>({ type: 'loading' })
+
+  useEffect(() => {
+    // 开发模式直接透传
+    if (import.meta.env.DEV) {
+      setState({ type: 'pass' })
+      return
+    }
+
+    // 飞书客户端内直接透传，由 RequireAuth 走 JS SDK 静默登录
+    if (isFeishuContainer()) {
+      setState({ type: 'pass' })
+      return
+    }
+
+    // 检查 OAuth 失败回调（auth_error query 参数）
+    const authError = consumeAuthErrorFromUrl()
+    if (authError) {
+      setState({ type: 'error', reason: authError })
+      return
+    }
+
+    // 检查 OAuth 成功回调（URL 携带 access_token）
+    const token = consumeTokenFromUrl()
+    if (token) {
+      localStorage.setItem('access_token', token)
+      setState({ type: 'pass' })
+      return
+    }
+
+    // 已有 token（之前登录过）直接透传，RequireAuth 会校验有效性
+    const stored = localStorage.getItem('access_token')
+    if (stored) {
+      setState({ type: 'pass' })
+      return
+    }
+
+    // 外部浏览器，无 token → 显示引导页
+    setState({ type: 'guide' })
+  }, [])
+
+  if (state.type === 'loading') {
+    return null
+  }
+
+  if (state.type === 'pass') {
     return <>{children}</>
   }
 
-  if (isFeishuContainer()) {
-    return <>{children}</>
-  }
+  return (
+    <GuideLayout
+      error={state.type === 'error' ? state.reason : undefined}
+    />
+  )
+}
 
+// ---------------------------------------------------------------------------
+// 引导页 UI
+// ---------------------------------------------------------------------------
+
+function GuideLayout({ error }: { error?: string }) {
   return (
     <div
       style={{
@@ -50,7 +155,7 @@ export default function FeishuGuard({ children }: FeishuGuardProps) {
           background: '#ffffff',
           borderRadius: 20,
           boxShadow: '0 1px 2px rgba(15,23,42,0.06), 0 8px 24px rgba(15,23,42,0.06)',
-          maxWidth: 400,
+          maxWidth: 420,
           width: '90%',
         }}
       >
@@ -72,43 +177,72 @@ export default function FeishuGuard({ children }: FeishuGuardProps) {
           </svg>
         </div>
 
-        {/* 标题 */}
-        <div
-          style={{
-            fontSize: 18,
-            fontWeight: 600,
-            color: '#1f2937',
-            marginBottom: 12,
-            lineHeight: 1.4,
-          }}
-        >
-          请在飞书中打开
-        </div>
+        {error ? (
+          <>
+            <div
+              style={{
+                fontSize: 18,
+                fontWeight: 600,
+                color: '#cf1322',
+                marginBottom: 12,
+              }}
+            >
+              授权失败
+            </div>
+            <div
+              style={{
+                fontSize: 14,
+                color: '#5f6b7a',
+                marginBottom: 32,
+                lineHeight: 1.6,
+              }}
+            >
+              飞书授权过程中出现错误（{error}），请重试。
+            </div>
+          </>
+        ) : (
+          <>
+            <div
+              style={{
+                fontSize: 18,
+                fontWeight: 600,
+                color: '#1f2937',
+                marginBottom: 12,
+                lineHeight: 1.4,
+              }}
+            >
+              请完成飞书身份验证
+            </div>
+            <div
+              style={{
+                fontSize: 14,
+                color: '#5f6b7a',
+                marginBottom: 32,
+                lineHeight: 1.6,
+              }}
+            >
+              Apex 是港药内部工具，需要飞书账号验证身份。
+              <br />
+              如已安装飞书客户端，可直接跳转打开；
+              <br />
+              也可在当前浏览器中完成网页授权。
+            </div>
+          </>
+        )}
 
-        {/* 说明文字 */}
-        <div
-          style={{
-            fontSize: 14,
-            color: '#5f6b7a',
-            marginBottom: 32,
-            lineHeight: 1.6,
-          }}
-        >
-          Apex 是港药内部工具，需要通过飞书客户端访问以完成身份验证。
-        </div>
-
-        {/* 跳转按钮 */}
+        {/* 主按钮：applink 跳转飞书客户端 */}
         <a
           href={buildAppLink()}
           style={{
-            display: 'inline-block',
-            padding: '10px 32px',
+            display: 'block',
+            padding: '10px 0',
             background: '#1a73e8',
             color: '#ffffff',
             borderRadius: 12,
             fontSize: 15,
             fontWeight: 500,
             textDecoration: 'none',
+            marginBottom: 12,
             transition: 'background 0.2s',
           }}
           onMouseEnter={(e) => {
@@ -118,7 +252,32 @@ export default function FeishuGuard({ children }: FeishuGuardProps) {
             ;(e.currentTarget as HTMLAnchorElement).style.background = '#1a73e8'
           }}
         >
-          在飞书中打开
+          在飞书客户端中打开
+        </a>
+
+        {/* 次按钮：浏览器内 OAuth 网页授权 */}
+        <a
+          href={buildOAuthRedirectUrl()}
+          style={{
+            display: 'block',
+            padding: '10px 0',
+            background: 'transparent',
+            color: '#1a73e8',
+            borderRadius: 12,
+            fontSize: 14,
+            fontWeight: 500,
+            textDecoration: 'none',
+            border: '1px solid #d0e3ff',
+            transition: 'background 0.2s',
+          }}
+          onMouseEnter={(e) => {
+            ;(e.currentTarget as HTMLAnchorElement).style.background = '#f0f6ff'
+          }}
+          onMouseLeave={(e) => {
+            ;(e.currentTarget as HTMLAnchorElement).style.background = 'transparent'
+          }}
+        >
+          在当前浏览器中授权
         </a>
       </div>
     </div>

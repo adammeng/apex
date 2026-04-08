@@ -1,4 +1,33 @@
 import axios from 'axios'
+import { isFeishuContainer } from './auth'
+
+/**
+ * JWT 失效时的重新授权策略：
+ * - 飞书客户端：清除 token，重载页面，由 RequireAuth 重走 JS SDK 静默登录
+ * - 外部浏览器：清除 token，重载页面，由 FeishuGuard 显示引导页重新授权
+ *
+ * 使用 reload 而非路由跳转的原因：
+ * 1. 认证组件（FeishuGuard / RequireAuth）在组件挂载时初始化，重新走 useEffect
+ * 2. 避免跳到不存在的 /login 路由导致循环重定向
+ */
+function handleUnauthorized() {
+  localStorage.removeItem('access_token')
+  // 避免重复触发（如并发请求同时 401）
+  if (window.location.href.includes('auth_error')) return
+  window.location.reload()
+}
+
+// 并发 401 防抖：只触发一次重授权，避免多请求同时 401 导致多次 reload
+let _unauthorizedHandled = false
+function handleUnauthorizedOnce() {
+  if (_unauthorizedHandled) return
+  _unauthorizedHandled = true
+  // 给其余 promise 链一个 tick 完成 reject，再执行重授权
+  setTimeout(() => {
+    _unauthorizedHandled = false
+    handleUnauthorized()
+  }, 50)
+}
 
 function resolveApiBaseUrl() {
   if (import.meta.env.DEV) {
@@ -71,8 +100,7 @@ request.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('access_token')
-      window.location.href = '/login'
+      handleUnauthorizedOnce()
     }
     return Promise.reject(new Error(resolveHttpErrorMessage(error)))
   }
