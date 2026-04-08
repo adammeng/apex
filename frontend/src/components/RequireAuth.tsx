@@ -69,8 +69,9 @@ export default function RequireAuth({ children }: RequireAuthProps) {
       if (token) {
         try {
           const me = await fetchMe()
-          // 飞书客户端内检测到残留 mock token → 强制重走真实静默登录
-          if (isFeishuContainer() && me.open_id === 'mock_open_id_dev') {
+          // mock token 在任何生产环境（飞书内或外部浏览器）都必须驱逐
+          const isMockToken = me.open_id === 'mock_open_id_dev'
+          if (isMockToken && !import.meta.env.DEV) {
             logout()
             await doSilentLogin()
             return

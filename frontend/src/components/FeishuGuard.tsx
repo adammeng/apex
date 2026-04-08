@@ -108,8 +108,24 @@ export default function FeishuGuard({ children }: FeishuGuardProps) {
     }
 
     // 已有 token（之前登录过）直接透传，RequireAuth 会校验有效性
+    // 生产环境如果是 mock token，提前清掉，走引导页重新授权
     const stored = localStorage.getItem('access_token')
     if (stored) {
+      if (!import.meta.env.DEV) {
+        try {
+          const payload = JSON.parse(atob(stored.split('.')[1]))
+          if (payload?.open_id === 'mock_open_id_dev') {
+            localStorage.removeItem('access_token')
+            setState({ type: 'guide' })
+            return
+          }
+        } catch {
+          // token 格式异常，清掉走引导页
+          localStorage.removeItem('access_token')
+          setState({ type: 'guide' })
+          return
+        }
+      }
       setState({ type: 'pass' })
       return
     }
