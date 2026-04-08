@@ -1,0 +1,179 @@
+<svg width="1600" height="1200" viewBox="0 0 1600 1200" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Apex 项目复盘图</title>
+  <desc id="desc">Apex 项目从 2026-03-30 到 2026-04-08 的时间线、阶段耗时、里程碑和关键坑点复盘信息图。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F7F3EC"/>
+      <stop offset="100%" stop-color="#EEF4F1"/>
+    </linearGradient>
+    <linearGradient id="hero" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#163B2F"/>
+      <stop offset="100%" stop-color="#245E47"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#10291f" flood-opacity="0.12"/>
+    </filter>
+    <style>
+      .title { font: 700 42px 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; fill: #ffffff; }
+      .subtitle { font: 400 18px 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; fill: rgba(255,255,255,0.82); }
+      .section-title { font: 700 24px 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; fill: #17392d; }
+      .section-note { font: 400 15px 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; fill: #5b6d65; }
+      .card-title { font: 700 18px 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; fill: #17392d; }
+      .card-text { font: 400 15px 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; fill: #30443d; }
+      .small { font: 400 13px 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; fill: #65756e; }
+      .tag { font: 700 12px 'SFMono-Regular', 'Menlo', monospace; letter-spacing: 0.08em; fill: #245E47; }
+      .num { font: 700 26px 'SFMono-Regular', 'Menlo', monospace; fill: #17392d; }
+      .date { font: 700 14px 'SFMono-Regular', 'Menlo', monospace; fill: #1d4f3d; }
+      .ms { font: 700 13px 'SFMono-Regular', 'Menlo', monospace; fill: #ffffff; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1200" fill="url(#bg)"/>
+  <rect x="40" y="36" width="1520" height="170" rx="28" fill="url(#hero)" filter="url(#shadow)"/>
+  <text x="84" y="98" class="tag">APEX / PROJECT RETROSPECTIVE</text>
+  <text x="84" y="144" class="title">Apex 项目复盘图</text>
+  <text x="84" y="182" class="subtitle">时间线、阶段耗时、里程碑、关键坑点 | 2026-03-30 至 2026-04-08</text>
+
+  <g transform="translate(1180,72)">
+    <rect x="0" y="0" width="310" height="98" rx="20" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.16)"/>
+    <text x="24" y="34" class="subtitle">推进概况</text>
+    <text x="24" y="72" class="num" fill="#ffffff">82 commits / 6 个高强度推进日</text>
+  </g>
+
+  <g transform="translate(60,246)">
+    <text x="0" y="0" class="section-title">1. 总时间线</text>
+    <text x="0" y="28" class="section-note">从“定规范”到“可交付”，主线分成 6 个连续阶段。</text>
+
+    <line x1="40" y1="110" x2="1460" y2="110" stroke="#8db6a5" stroke-width="6" stroke-linecap="round"/>
+
+    <g transform="translate(40,0)">
+      <circle cx="0" cy="110" r="16" fill="#163B2F"/>
+      <rect x="-20" y="142" width="180" height="118" rx="18" fill="#ffffff" stroke="#d7e4de"/>
+      <text x="0" y="84" class="date">03-30</text>
+      <text x="-2" y="172" class="card-title">启动与规范</text>
+      <text x="-2" y="198" class="card-text">项目初始化</text>
+      <text x="-2" y="220" class="card-text">中文规范 / 提交规范</text>
+      <text x="-2" y="242" class="small">耗时：1 天</text>
+    </g>
+
+    <g transform="translate(310,0)">
+      <circle cx="0" cy="110" r="16" fill="#245E47"/>
+      <rect x="-20" y="142" width="210" height="138" rx="18" fill="#ffffff" stroke="#d7e4de"/>
+      <text x="0" y="84" class="date">04-01</text>
+      <text x="-2" y="172" class="card-title">底座搭建</text>
+      <text x="-2" y="198" class="card-text">前后端工程骨架</text>
+      <text x="-2" y="220" class="card-text">环境拆分 / Docker / init</text>
+      <text x="-2" y="242" class="card-text">飞书 H5 登录首版</text>
+      <text x="-2" y="264" class="small">耗时：1 天</text>
+    </g>
+
+    <g transform="translate(600,0)">
+      <circle cx="0" cy="110" r="16" fill="#4C8E6C"/>
+      <rect x="-20" y="142" width="220" height="160" rx="18" fill="#ffffff" stroke="#d7e4de"/>
+      <text x="0" y="84" class="date">04-02</text>
+      <text x="-2" y="172" class="card-title">V1 功能冲刺</text>
+      <text x="-2" y="198" class="card-text">矩阵 / 泳道真实数据接通</text>
+      <text x="-2" y="220" class="card-text">筛选状态 / 导出 / UI 统一</text>
+      <text x="-2" y="242" class="card-text">虚拟滚动 / 并发缓存修复</text>
+      <text x="-2" y="286" class="small">耗时：1 天，最关键阶段</text>
+    </g>
+
+    <g transform="translate(920,0)">
+      <circle cx="0" cy="110" r="16" fill="#D39C52"/>
+      <rect x="-20" y="142" width="230" height="138" rx="18" fill="#ffffff" stroke="#d7e4de"/>
+      <text x="0" y="84" class="date">04-03</text>
+      <text x="-2" y="172" class="card-title">上线链路攻坚</text>
+      <text x="-2" y="198" class="card-text">飞书登录重构</text>
+      <text x="-2" y="220" class="card-text">部署 / 时区 / CORS / env</text>
+      <text x="-2" y="242" class="card-text">OSS 同步状态闭环</text>
+      <text x="-2" y="264" class="small">耗时：1 天</text>
+    </g>
+
+    <g transform="translate(1220,0)">
+      <circle cx="0" cy="110" r="16" fill="#B5624D"/>
+      <rect x="-20" y="142" width="240" height="160" rx="18" fill="#ffffff" stroke="#d7e4de"/>
+      <text x="0" y="84" class="date">04-07</text>
+      <text x="-2" y="172" class="card-title">PRD V2 与回摆</text>
+      <text x="-2" y="198" class="card-text">PRD 差异补齐</text>
+      <text x="-2" y="220" class="card-text">机会靶点新增后回退</text>
+      <text x="-2" y="242" class="card-text">data_versions / 历史归档恢复</text>
+      <text x="-2" y="286" class="small">耗时：1 天，变更最密集</text>
+    </g>
+
+    <g transform="translate(1460,0)">
+      <circle cx="0" cy="110" r="16" fill="#7E4A57"/>
+      <rect x="-170" y="142" width="170" height="118" rx="18" fill="#ffffff" stroke="#d7e4de"/>
+      <text x="-78" y="84" class="date">04-08</text>
+      <text x="-150" y="172" class="card-title">收尾交付</text>
+      <text x="-150" y="198" class="card-text">接口 / 测试 / 验收</text>
+      <text x="-150" y="220" class="card-text">生产同步修复</text>
+      <text x="-150" y="242" class="small">耗时：1 天</text>
+    </g>
+  </g>
+
+  <g transform="translate(60,630)">
+    <text x="0" y="0" class="section-title">2. 阶段耗时与重心</text>
+    <text x="0" y="28" class="section-note">时间不长，但每一阶段重心切换很快。</text>
+
+    <g transform="translate(0,60)">
+      <rect x="0" y="0" width="1520" height="170" rx="24" fill="#ffffff" stroke="#d7e4de"/>
+
+      <rect x="24" y="34" width="180" height="30" rx="15" fill="#dcebe5"/>
+      <rect x="210" y="34" width="180" height="30" rx="15" fill="#d4e7de"/>
+      <rect x="396" y="34" width="230" height="30" rx="15" fill="#c3dfd0"/>
+      <rect x="632" y="34" width="220" height="30" rx="15" fill="#ecd9b8"/>
+      <rect x="858" y="34" width="360" height="30" rx="15" fill="#ebcdc4"/>
+      <rect x="1224" y="34" width="180" height="30" rx="15" fill="#dccbd0"/>
+
+      <text x="34" y="55" class="ms">规范</text>
+      <text x="230" y="55" class="ms">底座</text>
+      <text x="416" y="55" class="ms">V1 功能</text>
+      <text x="652" y="55" class="ms">上线链路</text>
+      <text x="878" y="55" class="ms">PRD 回摆 / 历史版本 / 飞书方案验证</text>
+      <text x="1244" y="55" class="ms">收尾</text>
+
+      <text x="24" y="104" class="card-title">阶段判断</text>
+      <text x="24" y="132" class="card-text">前半段是“把功能做出来”，后半段是“把真实环境和需求变化吃透”。</text>
+      <text x="24" y="156" class="card-text">真正最耗心力的不是页面开发，而是飞书登录、同步归档、部署配置三条稳定性链路。</text>
+    </g>
+  </g>
+
+  <g transform="translate(60,920)">
+    <text x="0" y="0" class="section-title">3. 关键里程碑</text>
+    <text x="0" y="28" class="section-note">适合给老板或评审快速扫一眼。</text>
+
+    <g transform="translate(0,60)">
+      <rect x="0" y="0" width="730" height="210" rx="24" fill="#ffffff" stroke="#d7e4de"/>
+      <text x="28" y="42" class="card-title">Milestones</text>
+
+      <circle cx="36" cy="76" r="7" fill="#245E47"/>
+      <text x="56" y="82" class="card-text">M1 `04-01` 飞书 H5 静默登录首版打通</text>
+
+      <circle cx="36" cy="112" r="7" fill="#4C8E6C"/>
+      <text x="56" y="118" class="card-text">M2 `04-02` 竞争矩阵 / 研发泳道完成真实数据渲染</text>
+
+      <circle cx="36" cy="148" r="7" fill="#D39C52"/>
+      <text x="56" y="154" class="card-text">M3 `04-03` 同步状态、部署配置、飞书调试链路基本闭环</text>
+
+      <circle cx="36" cy="184" r="7" fill="#B5624D"/>
+      <text x="56" y="190" class="card-text">M4 `04-07` 恢复 data_versions 与 parquet 历史归档，支持追溯</text>
+    </g>
+
+    <g transform="translate(790,60)">
+      <rect x="0" y="0" width="730" height="210" rx="24" fill="#ffffff" stroke="#d7e4de"/>
+      <text x="28" y="42" class="card-title">关键坑点</text>
+
+      <circle cx="36" cy="76" r="7" fill="#B5624D"/>
+      <text x="56" y="82" class="card-text">飞书方案反复最多：H5 静默登录 → 网页 OAuth 尝试 → applink 回退</text>
+
+      <circle cx="36" cy="112" r="7" fill="#B5624D"/>
+      <text x="56" y="118" class="card-text">版本策略反转：固定覆盖写入 → 因 PRD V2 恢复历史归档</text>
+
+      <circle cx="36" cy="148" r="7" fill="#B5624D"/>
+      <text x="56" y="154" class="card-text">矩阵性能真实触顶：引入二维虚拟滚动，才扛住大靶点渲染</text>
+
+      <circle cx="36" cy="184" r="7" fill="#B5624D"/>
+      <text x="56" y="190" class="card-text">生产环境问题集中在域名 / CORS / 时区 / Docker OOM / 同步配置</text>
+    </g>
+  </g>
+</svg>
