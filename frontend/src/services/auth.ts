@@ -84,6 +84,16 @@ function stringifySdkError(err: unknown) {
   return String(err)
 }
 
+function shouldFallbackToRequestAuthCode(err: unknown) {
+  const message = stringifySdkError(err)
+  return (
+    message.includes('invalid redirect uri in h5 case') ||
+    message.includes('Error code: 20029') ||
+    message.includes('"errno":2700002') ||
+    message.includes('errno=2700002')
+  )
+}
+
 /**
  * 飞书 JS SDK 类型声明（H5 内嵌应用环境）
  * 参考 s_employee_front，统一使用静态注入的 H5 SDK。
@@ -172,6 +182,7 @@ export async function silentLogin(): Promise<string> {
     const appId = import.meta.env.VITE_FEISHU_APP_ID
     const requestAccessApi = window.tt?.requestAccess
     const requestAuthCodeApi = window.tt?.requestAuthCode
+    let settled = false
 
     recordAuthDebug('silentLogin.start', {
       appId,
@@ -185,6 +196,10 @@ export async function silentLogin(): Promise<string> {
     }
 
     const exchangeCode = async (code: string) => {
+      if (settled) {
+        return
+      }
+
       try {
         recordAuthDebug('silentLogin.code.received', {
           code: maskCode(code),
@@ -193,16 +208,45 @@ export async function silentLogin(): Promise<string> {
           '/auth/feishu/code2token',
           { code }
         )
+        settled = true
         recordAuthDebug('silentLogin.code.exchanged', {
           accessToken: 'received',
         })
         resolve(res.data.data.access_token)
       } catch (err) {
+        settled = true
         recordAuthDebug('silentLogin.code.exchange.failed', {
           error: stringifySdkError(err),
         })
         reject(err)
       }
+    }
+
+    const invokeRequestAuthCode = () => {
+      if (!requestAuthCodeApi) {
+        settled = true
+        reject(new Error('飞书授权失败: requestAccess 不可用，且 requestAuthCode 不存在'))
+        return
+      }
+
+      recordAuthDebug('silentLogin.requestAuthCode.invoke', {
+        appId,
+      })
+      requestAuthCodeApi({
+        appId,
+        success: ({ code }) => void exchangeCode(code),
+        fail: (err) => {
+          if (settled) {
+            return
+          }
+
+          settled = true
+          recordAuthDebug('silentLogin.requestAuthCode.failed', {
+            error: stringifySdkError(err),
+          })
+          reject(new Error(`飞书授权失败: ${stringifySdkError(err)}`))
+        },
+      })
     }
 
     if (requestAccessApi) {
@@ -214,28 +258,30 @@ export async function silentLogin(): Promise<string> {
         scopeList: [],
         success: ({ code }) => void exchangeCode(code),
         fail: (err) => {
+          if (settled) {
+            return
+          }
+
           recordAuthDebug('silentLogin.requestAccess.failed', {
             error: stringifySdkError(err),
           })
+
+          if (requestAuthCodeApi && shouldFallbackToRequestAuthCode(err)) {
+            recordAuthDebug('silentLogin.requestAccess.fallback.requestAuthCode', {
+              reason: stringifySdkError(err),
+            })
+            invokeRequestAuthCode()
+            return
+          }
+
+          settled = true
           reject(new Error(`飞书授权失败: ${stringifySdkError(err)}`))
         },
       })
       return
     }
 
-    recordAuthDebug('silentLogin.requestAuthCode.invoke', {
-      appId,
-    })
-    requestAuthCodeApi?.({
-      appId,
-      success: ({ code }) => void exchangeCode(code),
-      fail: (err) => {
-        recordAuthDebug('silentLogin.requestAuthCode.failed', {
-          error: stringifySdkError(err),
-        })
-        reject(new Error(`飞书授权失败: ${stringifySdkError(err)}`))
-      },
-    })
+    invokeRequestAuthCode()
   })
 }
 

@@ -157,13 +157,19 @@ brew services stop redis
 |------|------|------|
 | 应用 | `DEBUG` `ENVIRONMENT` | debug=true 时开启 mock-login |
 | JWT | `JWT_SECRET` `JWT_EXPIRE_MINUTES` | 生产环境必须用强随机密钥 |
-| 飞书 | `FEISHU_APP_ID` `FEISHU_APP_SECRET` | 企业自建应用凭证 |
-| 前端 | `FRONTEND_URL` | OAuth 回调后重定向目标（备用） |
+| 飞书 | `FEISHU_APP_ID` `FEISHU_APP_SECRET` `FEISHU_REDIRECT_URI` | 企业自建应用凭证；`FEISHU_REDIRECT_URI` 用于浏览器 OAuth 回调 |
+| 前端 | `FRONTEND_URL` | 浏览器 OAuth 成功后 302 回跳的前端地址 |
 | Redis | `REDIS_URL` `CACHE_TTL_SECONDS` | 默认 TTL 1 小时 |
 | MySQL | `MYSQL_HOST/PORT/USER/PASSWORD/DATABASE` | 元数据库 |
 | 数据路径 | `DATA_DIR` `PARQUET_DIR` | DATA_DIR 运行期数据根目录；PARQUET_DIR 本地 parquet 路径 |
 | 定时同步 | `SYNC_HOUR` `SYNC_MINUTE` | 默认每日 05:10 |
 | OSS | `OSS_ENDPOINT/ACCESS_KEY_ID/ACCESS_KEY_SECRET/BUCKET_NAME` | 阿里云 OSS |
+
+线上部署注意：
+
+- `docker compose` 会先加载 `.env.production`，再加载 `.env.production.local`
+- 若 `.env.production.local` 中仍保留旧的 `FEISHU_REDIRECT_URI=/api/auth/feishu/launch`，会覆盖 `.env.production` 中正确的 `/api/auth/feishu/callback`
+- 这会导致浏览器 OAuth 授权完成后无法在后端完成 `code -> JWT` 交换
 
 ## 接口概览
 
@@ -174,8 +180,11 @@ brew services stop redis
 | 方法 | 路径 | 说明 | 认证 |
 |------|------|------|------|
 | POST | `/auth/feishu/code2token` | 飞书 JSSDK 静默获取 code 后换取 JWT | 无 |
+| GET  | `/auth/feishu/launch` | 飞书工作台 / H5 网页应用入口，302 到前端页面 | 无 |
+| GET  | `/auth/feishu/redirect` | 外部浏览器发起 OAuth，302 到飞书授权页 | 无 |
+| GET  | `/auth/feishu/callback` | 飞书 OAuth 回调，换 JWT 后 302 回前端 | 无 |
 | GET  | `/auth/me` | 返回当前登录用户信息 | JWT |
-| POST | `/auth/mock-login` | Mock 登录，返回真实 JWT（仅 DEBUG=true） | 无 |
+| POST | `/auth/mock-login` | Mock 登录，返回真实 JWT（仅本地开发兜底） | 无 |
 
 ### 系统 `/api/system`
 

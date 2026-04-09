@@ -77,6 +77,12 @@ Authorization: Bearer <access_token>
 4. 后端换取用户信息，签发 JWT，302 到前端 `/?access_token=<jwt>`
 5. 前端 `FeishuGuard` 消费 URL 中的 token，存入 localStorage，清理 URL
 
+注意：
+
+- H5 静默登录入口是 `/api/auth/feishu/launch`
+- 浏览器 OAuth 回调必须是 `/api/auth/feishu/callback`
+- 若运行时环境变量把 `FEISHU_REDIRECT_URI` 错配为 `/launch`，浏览器授权完成后不会在后端执行 `code -> JWT` 交换，只会被 302 到前端页面，最终表现为“授权后仍未登录”
+
 详细流程见：[飞书登录流程](./飞书登录流程.md)
 
 ## 4. 接口总览

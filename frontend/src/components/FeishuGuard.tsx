@@ -18,6 +18,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import { isFeishuContainer } from '../services/auth'
+import { useAuthStore } from '../stores/auth'
 
 const FEISHU_APP_ID = import.meta.env.VITE_FEISHU_APP_ID as string
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, '') || '/api'
@@ -78,6 +79,7 @@ interface FeishuGuardProps {
 
 export default function FeishuGuard({ children }: FeishuGuardProps) {
   const [state, setState] = useState<GuardState>({ type: 'loading' })
+  const setToken = useAuthStore((state) => state.setToken)
 
   useEffect(() => {
     // 开发模式直接透传
@@ -102,7 +104,7 @@ export default function FeishuGuard({ children }: FeishuGuardProps) {
     // 检查 OAuth 成功回调（URL 携带 access_token）
     const token = consumeTokenFromUrl()
     if (token) {
-      localStorage.setItem('access_token', token)
+      setToken(token)
       setState({ type: 'pass' })
       return
     }
@@ -126,13 +128,14 @@ export default function FeishuGuard({ children }: FeishuGuardProps) {
           return
         }
       }
+      setToken(stored)
       setState({ type: 'pass' })
       return
     }
 
     // 外部浏览器，无 token → 显示引导页
     setState({ type: 'guide' })
-  }, [])
+  }, [setToken])
 
   if (state.type === 'loading') {
     return null

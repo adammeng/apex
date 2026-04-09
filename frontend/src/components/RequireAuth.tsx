@@ -16,8 +16,8 @@ interface RequireAuthProps {
 }
 
 function shouldUseMockLogin() {
-  // 只判断是否在飞书客户端内，不在飞书里（含 PC 浏览器、其他环境）均走 mock 开发用户
-  return !isFeishuContainer()
+  // 仅开发模式允许在非飞书环境下走 mock 用户。
+  return import.meta.env.DEV && !isFeishuContainer()
 }
 
 /**
@@ -66,6 +66,19 @@ export default function RequireAuth({ children }: RequireAuthProps) {
     }
 
     async function init() {
+      const persistedToken = localStorage.getItem('access_token')
+      if (!token && persistedToken) {
+        setToken(persistedToken)
+        try {
+          const me = await fetchMe()
+          setUser(me)
+          setReady(true)
+          return
+        } catch {
+          logout()
+        }
+      }
+
       if (token) {
         try {
           const me = await fetchMe()
@@ -90,6 +103,11 @@ export default function RequireAuth({ children }: RequireAuthProps) {
             setError('登录已过期，请重新授权')
           }
         }
+        return
+      }
+
+      if (!import.meta.env.DEV && !isFeishuContainer()) {
+        setError('请先在当前浏览器完成飞书授权，或在飞书客户端中打开')
         return
       }
 
