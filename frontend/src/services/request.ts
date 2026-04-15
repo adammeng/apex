@@ -3,10 +3,12 @@ import { isFeishuContainer } from './auth'
 
 /**
  * JWT 失效时的重新授权策略：
- * - 飞书客户端：清除 token，重载页面，由 RequireAuth 重走 JS SDK 静默登录
- * - 外部浏览器：清除 token，重载页面，由 FeishuGuard 显示引导页重新授权
+ * - 飞书客户端：仅清除 token，不 reload。
+ *   RequireAuth 的 catch 块会捕获 fetchMe() 的 401 错误，主动调用 doSilentLogin()。
+ *   若此处也 reload，会与 doSilentLogin() 竞争并打断正在进行的 JS SDK 静默授权流程。
+ * - 外部浏览器：清除 token，重载页面，由 FeishuGuard 显示引导页重新授权。
  *
- * 使用 reload 而非路由跳转的原因：
+ * 使用 reload 而非路由跳转的原因（外部浏览器）：
  * 1. 认证组件（FeishuGuard / RequireAuth）在组件挂载时初始化，重新走 useEffect
  * 2. 避免跳到不存在的 /login 路由导致循环重定向
  */
@@ -14,6 +16,9 @@ function handleUnauthorized() {
   localStorage.removeItem('access_token')
   // 避免重复触发（如并发请求同时 401）
   if (window.location.href.includes('auth_error')) return
+  // 飞书客户端内：只清 token，不 reload。
+  // RequireAuth 会在 fetchMe() 失败后自行走 silentLogin()，reload 会打断该流程。
+  if (isFeishuContainer()) return
   window.location.reload()
 }
 

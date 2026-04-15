@@ -76,6 +76,13 @@ export default function RequireAuth({ children }: RequireAuthProps) {
           return
         } catch {
           logout()
+          // token 已过期或无效：飞书内重新静默登录，外部浏览器由 FeishuGuard 处理
+          if (isFeishuContainer()) {
+            await doSilentLogin()
+          } else {
+            setError('登录已过期，请重新授权')
+          }
+          return
         }
       }
 
